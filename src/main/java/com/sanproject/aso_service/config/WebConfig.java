@@ -23,7 +23,14 @@ public class WebConfig implements WebMvcConfigurer {
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("Authorization"));
+        // Retry-After and the RateLimit-* headers are not CORS-safelisted, so the browser cannot
+        // read them from a 429 response unless they are listed here.
+        config.setExposedHeaders(List.of(
+                "Authorization",
+                "Retry-After",
+                "RateLimit-Limit",
+                "RateLimit-Remaining",
+                "RateLimit-Reset"));
         config.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

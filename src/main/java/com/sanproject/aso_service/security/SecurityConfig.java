@@ -1,5 +1,7 @@
 package com.sanproject.aso_service.security;
 
+import com.sanproject.aso_service.ratelimit.RateLimitFilter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,9 +25,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ObjectProvider<RateLimitFilter> rateLimitFilterProvider;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          ObjectProvider<RateLimitFilter> rateLimitFilterProvider) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitFilterProvider = rateLimitFilterProvider;
     }
 
     @Bean
@@ -60,6 +65,9 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 // Run our JWT filter before Spring's username/password filter.
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        rateLimitFilterProvider.ifAvailable(rateLimitFilter ->
+                http.addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class));
 
         return http.build();
     }

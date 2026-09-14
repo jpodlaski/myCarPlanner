@@ -22,6 +22,16 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        if (error.response?.status === 429) {
+            const retryAfter = error.response.headers["retry-after"];
+            const message = retryAfter
+                ? `Too many requests. Please wait ${retryAfter} seconds before trying again.`
+                : "Too many requests. Please slow down and try again.";
+            // Attach a friendly message for UI components to surface.
+            error.message = message;
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401) {
             const url = error.config?.url ?? "";
             const isAuthEndpoint =
