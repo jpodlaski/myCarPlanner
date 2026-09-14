@@ -2,6 +2,7 @@ package com.sanproject.aso_service.ratelimit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sanproject.aso_service.security.AuthUser;
+import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,13 +32,11 @@ class RateLimitFilterTest {
     private final RateLimitService rateLimitService = mock(RateLimitService.class);
 
     private RateLimitFilter filter;
-    private RateLimitProperties properties;
-    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
         reset(rateLimitService);
-        properties = new RateLimitProperties();
+        RateLimitProperties properties = new RateLimitProperties();
         properties.setEnabled(true);
         properties.getDefaultLimit().setMaxRequests(600);
         properties.getDefaultLimit().setWindowSeconds(60);
@@ -50,8 +49,7 @@ class RateLimitFilterTest {
         clientBookingRule.setWindowSeconds(60);
         properties.setRules(List.of(clientBookingRule));
 
-        objectMapper = new ObjectMapper();
-        filter = new RateLimitFilter(properties, rateLimitService, new IpAddressExtractor(properties), objectMapper);
+        filter = new RateLimitFilter(properties, rateLimitService, new IpAddressExtractor(properties), new ObjectMapper());
     }
 
     @AfterEach
@@ -160,12 +158,13 @@ class RateLimitFilterTest {
     }
 
     /**
-     * The servlet-level copy of the filter would see an empty SecurityContext and, via
-     * OncePerRequestFilter, suppress the copy inside the security chain. RateLimitConfig disables
-     * that registration; this pins the behaviour the filter relies on.
+     * Why RateLimitConfig disables the servlet-level registration: if the filter is registered
+     * both with the container and inside Spring Security's chain, the outer invocation wraps the
+     * inner one and OncePerRequestFilter suppresses the inner copy. The surviving outer copy runs
+     * before authentication, so every caller would look anonymous.
      */
     @Test
-    void doesNotRunTwiceForTheSameRequest() throws Exception {
+    void nestedInvocationIsSuppressedByOncePerRequestFilter() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/hello");
         request.setRemoteAddr("1.2.3.4");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -173,8 +172,8 @@ class RateLimitFilterTest {
         when(rateLimitService.isAllowed(anyString(), anyInt(), anyInt()))
                 .thenReturn(new RateLimitDecision(true, 599, Instant.now().getEpochSecond() + 60, 600));
 
-        filter.doFilter(request, response, new MockFilterChain());
-        filter.doFilter(request, response, new MockFilterChain());
+        FilterChain innerInvocation = (req, res) -> filter.doFilter(req, res, new MockFilterChain());
+        filter.doFilter(request, response, innerInvocation);
 
         verify(rateLimitService, times(1)).isAllowed(anyString(), anyInt(), anyInt());
     }

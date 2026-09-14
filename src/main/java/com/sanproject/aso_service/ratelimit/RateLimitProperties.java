@@ -21,8 +21,8 @@ import java.util.Set;
  * app.rate-limit.default-limit.window-seconds=60
  *
  * app.rate-limit.rules[0].path=/auth/login
- * app.rate-limit.rules[0].methods=POST
- * app.rate-limit.rules[0].roles=ANONYMOUS
+ * app.rate-limit.rules[0].methods[0]=POST
+ * app.rate-limit.rules[0].roles[0]=ANONYMOUS
  * app.rate-limit.rules[0].max-requests=10
  * app.rate-limit.rules[0].window-seconds=60
  * </pre>
@@ -41,17 +41,6 @@ public class RateLimitProperties {
     private DefaultLimit defaultLimit = new DefaultLimit(600, 60);
 
     private List<Rule> rules = new ArrayList<>();
-
-    /**
-     * Spring Boot relaxes {@code rules[0].methods=POST} to a single-element list on the collection
-     * setter. Exposing a single-Rule setter keeps the property binder happy for all forms.
-     */
-    public void setRules(String rules) {
-        // Single-string form is not used with indexed properties, but leaving it here prevents
-        // accidental delegation to the List<String> overload that confuses the binder.
-        throw new UnsupportedOperationException(
-                "Rate-limit rules must be configured with indexed properties (rules[0].path=...).");
-    }
 
     public boolean isEnabled() {
         return enabled;
@@ -141,14 +130,6 @@ public class RateLimitProperties {
             return methods;
         }
 
-        /**
-         * Binds from comma-separated lists in properties, e.g. {@code methods=POST,GET}.
-         * Also accepts a single value like {@code methods=POST}.
-         */
-        public void setMethods(String methods) {
-            this.methods = parseCsv(methods);
-        }
-
         public void setMethods(Set<String> methods) {
             this.methods = methods;
         }
@@ -157,29 +138,8 @@ public class RateLimitProperties {
             return roles;
         }
 
-        /**
-         * Binds from comma-separated lists in properties, e.g. {@code roles=ANONYMOUS,AUTHENTICATED}.
-         */
-        public void setRoles(String roles) {
-            this.roles = parseCsv(roles);
-        }
-
         public void setRoles(Set<String> roles) {
             this.roles = roles;
-        }
-
-        private static Set<String> parseCsv(String value) {
-            if (value == null || value.isBlank()) {
-                return new LinkedHashSet<>();
-            }
-            Set<String> result = new LinkedHashSet<>();
-            for (String part : value.split(",")) {
-                String trimmed = part.trim();
-                if (!trimmed.isEmpty()) {
-                    result.add(trimmed);
-                }
-            }
-            return result;
         }
 
         public int getMaxRequests() {

@@ -70,21 +70,7 @@ class RateLimitPropertiesTest {
                 .filter(rule -> "/hello".equals(rule.getPath()))
                 .findFirst()
                 .orElseThrow();
-        assertThat(helloRule.getRoles()).containsExactly("ANONYMOUS", "AUTHENTICATED");
-    }
-
-    @Test
-    void commaSeparatedMethodsAndRolesParse() {
-        RateLimitProperties.Rule rule = new RateLimitProperties.Rule();
-        rule.setMethods("POST,GET");
-        rule.setRoles("ANONYMOUS,AUTHENTICATED");
-
-        assertThat(rule.getMethods()).containsExactly("POST", "GET");
-        assertThat(rule.getRoles()).containsExactly("ANONYMOUS", "AUTHENTICATED");
-        assertThat(rule.matchesMethod("POST")).isTrue();
-        assertThat(rule.matchesMethod("DELETE")).isFalse();
-        assertThat(rule.matchesRole(Set.of("ANONYMOUS"))).isTrue();
-        assertThat(rule.matchesRole(Set.of("CLIENT"))).isFalse();
+        assertThat(helloRule.getRoles()).containsExactlyInAnyOrder("ANONYMOUS", "AUTHENTICATED");
     }
 
     @Test
