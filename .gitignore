@@ -19,10 +19,10 @@ replay_pid*
 
 ### Node / frontend ###
 node_modules/
-aso-frontend/node_modules/
-aso-frontend/dist/
-aso-frontend/dist-ssr/
-aso-frontend/.vite/
+mycarplanner-frontend/node_modules/
+mycarplanner-frontend/dist/
+mycarplanner-frontend/dist-ssr/
+mycarplanner-frontend/.vite/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -105,3 +105,5 @@ HELP.md
 *.orig
 .cursor/
 agent-transcripts/
+.junie
+

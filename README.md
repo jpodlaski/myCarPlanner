@@ -1,7 +1,6 @@
-![Aston Martin ASO Service](docs/preview.png)
-# Aston Martin ASO Service
+# myCarPlanner
 
-Web application for an **Authorized Service Organization (ASO)**. Clients register, add Aston Martin vehicles, and request service. A **consultant** confirms the appointment; a **mechanic** (or apprentice) claims the job, updates the work plan, and completes service. Management creates workshop accounts. Branded notification emails are sent at each step; completion includes a PDF invoice.
+Web application for planning vehicle service at a workshop. Clients register, add Aston Martin vehicles, and request service. A **consultant** confirms the appointment; a **mechanic** (or apprentice) claims the job, updates the work plan, and completes service. Management creates workshop accounts. Branded notification emails are sent at each step; completion includes a PDF invoice.
 
 ---
 
@@ -47,7 +46,7 @@ Five containers should be running:
 | Frontend | http://localhost:5173 |
 | MailHog UI | http://localhost:8025 |
 | Email renderer | http://localhost:3000 |
-| Postgres | `localhost:5432` (`aso_service_db`) |
+| Postgres | `localhost:5432` (`mycarplanner_db`) |
 
 ```bash
 docker compose ps
@@ -71,6 +70,8 @@ rm -rf pgdata
 ./mvnw package -DskipTests
 docker compose up --build
 ```
+
+> **Rebrand note:** the databases were renamed to `mycarplanner_db` / `mycarplanner_test` and browser storage keys to `mycarplanner_*`. Existing local data is not migrated: run `docker compose down && rm -rf pgdata` once and sign in again. The screenshot `docs/preview.png` predates the rebrand and may be refreshed.
 
 Stop containers **before** deleting `pgdata` (otherwise Postgres can leave a corrupted data directory). The API waits until Postgres is healthy, then seeds `admin` / `admin` on an empty DB.
 
@@ -273,7 +274,7 @@ docker compose up -d --build --force-recreate email-renderer
 
 ## Frontend
 
-Runs in Docker with the stack (no local Node required for the demo). The frontend container bind-mounts `aso-frontend/`, so UI edits hot-reload.
+Runs in Docker with the stack (no local Node required for the demo). The frontend container bind-mounts `mycarplanner-frontend/`, so UI edits hot-reload.
 
 | Page | URL |
 |------|-----|
@@ -285,7 +286,7 @@ Runs in Docker with the stack (no local Node required for the demo). The fronten
 | Employee dashboard | http://localhost:5173/employee |
 | Management dashboard | http://localhost:5173/admin |
 
-Optional local UI: `cd aso-frontend && npm install && npm run dev`
+Optional local UI: `cd mycarplanner-frontend && npm install && npm run dev`
 
 ---
 
@@ -293,7 +294,7 @@ Optional local UI: `cd aso-frontend && npm install && npm run dev`
 
 Migrations: `src/main/resources/db/migration/`. Flyway applies them on startup; Hibernate only validates.
 
-Test database: `aso_service_test` (see `src/test/resources/application-test.properties`).
+Test database: `mycarplanner_test` (see `src/test/resources/application-test.properties`).
 
 ---
 
@@ -301,7 +302,7 @@ Test database: `aso_service_test` (see `src/test/resources/application-test.prop
 
 ```bash
 # Create test DB once (Postgres from docker compose is fine)
-docker exec aso-postgres psql -U postgres -c "CREATE DATABASE aso_service_test;"
+docker exec mycarplanner-postgres psql -U postgres -c "CREATE DATABASE mycarplanner_test;"
 
 ./mvnw test
 ```
@@ -321,9 +322,9 @@ CI (`.github/workflows/ci.yml`) runs Maven tests/package and frontend lint/build
 ## Project layout
 
 ```
-aso-service/
-├── src/main/java/com/sanproject/aso_service/
-│   ├── AsoServiceApplication.java
+mycarplanner/
+├── src/main/java/com/sanproject/service_planner/
+│   ├── ServicePlannerApplication.java
 │   ├── config/           Spring config, exception handler, demo seed
 │   ├── security/         JWT, password hashing, auth helpers
 │   ├── domain/           JPA entities and enums
@@ -338,7 +339,7 @@ aso-service/
 │   ├── catalog/          Aston Martin vehicle catalog JSON
 │   └── email/            Invoice / email logo asset
 ├── src/test/java/...     Integration tests
-├── aso-frontend/src/
+├── mycarplanner-frontend/src/
 │   ├── pages/
 │   │   ├── Landing.jsx
 │   │   ├── auth/         Login, register, password, verify, delete
@@ -371,4 +372,4 @@ docker compose up -d --build --force-recreate app
 docker compose up -d --build --force-recreate email-renderer
 ```
 
-**Frontend:** usually no rebuild needed (bind mount). Full image rebuild only if `aso-frontend/Dockerfile` or dependencies change.
+**Frontend:** usually no rebuild needed (bind mount). Full image rebuild only if `mycarplanner-frontend/Dockerfile` or dependencies change.

@@ -16,13 +16,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: aso_service_test
+          POSTGRES_DB: mycarplanner_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d aso_service_test"
+          --health-cmd "pg_isready -U postgres -d mycarplanner_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: aso-frontend
+        working-directory: mycarplanner-frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -67,7 +67,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: aso-frontend/package-lock.json
+          cache-dependency-path: mycarplanner-frontend/package-lock.json
 
       - name: Install
         run: npm ci

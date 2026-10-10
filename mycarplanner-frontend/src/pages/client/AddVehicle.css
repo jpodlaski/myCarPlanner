@@ -1,0 +1,10 @@
+.add-vehicle-page .dashboard-header h1 {
+  margin: 0.55rem 0 0.2rem;
+}
+
+.add-vehicle-page .logo {
+  height: clamp(1.75rem, 3.5vw, 2.25rem);
+  width: auto;
+  max-width: min(12rem, 68vw);
+  object-fit: contain;
+}
