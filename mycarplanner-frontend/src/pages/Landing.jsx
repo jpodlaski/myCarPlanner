@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { WORKSHOP_ADDRESS } from "../constants/workshop";
 import "./Landing.css";
 
 /** Public home — same blue shell and typography language as signed-in dashboards. */
