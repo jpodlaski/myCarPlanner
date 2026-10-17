@@ -59,7 +59,7 @@ export default function FakeCookieBanner() {
       )}
       {showPsyduck && (
         <div className="fake-cookie-psyduck" aria-hidden="true">
-          <img src="/psyduck.jpg" alt="" />
+          <img src="/psyduck.png" alt="" />
         </div>
       )}
     </>

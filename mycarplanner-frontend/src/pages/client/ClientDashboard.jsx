@@ -6,6 +6,8 @@ import { clearSession, getSession } from "../../services/auth";
 import { formatCustomerDateTime } from "../../utils/dateTime";
 import "../../components/DashboardLayout.css";
 import "./ClientDashboard.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 const SECTIONS = {
     vehicles: "Vehicles",
@@ -602,20 +604,15 @@ export default function ClientDashboard() {
 
     return (
         <div className="client-dashboard-shell">
-            <div
-                className="client-dashboard-bg"
-                aria-hidden="true"
-            />
-            <div className="client-dashboard-veil" aria-hidden="true" />
-
             <div className="dashboard client-dashboard">
                 <div className="dashboard-header">
                     <div>
-                        <img className="logo" src="/logo.png" alt="myCarPlanner" />
+                        <Logo className="logo" />
                         <p className="dashboard-user">Signed in as {session?.name}</p>
                     </div>
 
                     <div className="dashboard-header-actions">
+                        <ThemeToggle />
                         <div className="menu" ref={menuRef}>
                             <button
                                 type="button"

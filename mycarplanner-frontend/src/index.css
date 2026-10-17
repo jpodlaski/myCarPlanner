@@ -1,22 +1,52 @@
+/* Theme tokens: :root is the dark palette, [data-theme="light"] the light one.
+   Channel triplets (rgb(var(--hairline-rgb) / 0.16)) flip hue but keep per-rule alpha. */
 :root {
+  color-scheme: dark;
+
   /* myCarPlanner brand: white + #2791F5 */
   --brand-blue: #2791f5;
+  --snow: #ffffff;
   --ink: #0a0c0e;
   --ink-soft: #14181c;
-  --snow: #ffffff;
+
+  /* Channel triplets — these flip between themes. */
+  --hairline-rgb: 255 255 255;
+  --line-rgb: 243 244 242;
+  --surface-rgb: 16 20 24;
+  --surface-alt-rgb: 12 15 18;
+  --ghost-rgb: 10 12 14;
+  --accent-rgb: 39 145 245;
+  --danger-rgb: 196 92 74;
+  --danger-text-rgb: 240 180 170;
+
   --text: #b8bbb6;
   --text-h: #ffffff;
   --bg: #0a0c0e;
   --bg-elevated: #161b1f;
-  --border: rgba(255, 255, 255, 0.16);
+  --border: rgb(var(--hairline-rgb) / 0.16);
+
   --accent: #2791f5;
   --accent-bright: #2791f5;
+  --accent-hover: #489ff6;
   --accent-soft: #93c5fd;
-  --accent-bg: rgba(39, 145, 245, 0.18);
-  --accent-border: rgba(39, 145, 245, 0.55);
+  --accent-bg: rgb(var(--accent-rgb) / 0.18);
+  --accent-border: rgb(var(--accent-rgb) / 0.55);
+
   --danger: #c45c4a;
-  --danger-bg: rgba(196, 92, 74, 0.12);
-  --danger-border: rgba(196, 92, 74, 0.45);
+  --danger-text: rgb(var(--danger-text-rgb));
+  --danger-bg: rgb(var(--danger-rgb) / 0.12);
+  --danger-border: rgb(var(--danger-rgb) / 0.45);
+
+  /* Frosted panels, ghost buttons and overlay scrims. */
+  --surface: rgb(var(--surface-rgb) / 0.72);
+  --surface-strong: rgb(var(--surface-rgb) / 0.94);
+  --surface-opaque: rgb(var(--surface-rgb) / 0.96);
+  --surface-alt: rgb(var(--surface-alt-rgb) / 0.94);
+  --ghost-bg: rgb(var(--ghost-rgb) / 0.35);
+  --fill-subtle: rgb(var(--line-rgb) / 0.06);
+  --option-bg: #12161a;
+  --scrim: rgba(8, 10, 12, 0.45);
+  --drop-shadow-color: rgba(0, 0, 0, 0.55);
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
 
   /* SF Pro on Apple; system-ui elsewhere (Segoe UI / Roboto as platform defaults). */
@@ -34,7 +64,38 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --text: #4c5258;
+  --text-h: #0a0c0e;
+  --bg: #ffffff;
+  --bg-elevated: #f4f6f8;
+
+  /* Borders invert to ink so they stay visible on white. */
+  --hairline-rgb: 10 12 14;
+  --line-rgb: 10 12 14;
+
+  --accent: #1b7fe0;
+  --accent-bright: #1b7fe0;
+  --accent-hover: #2791f5;
+  --accent-soft: #1b7fe0;
+  --accent-bg: rgb(var(--accent-rgb) / 0.1);
+  --accent-border: rgb(var(--accent-rgb) / 0.45);
+
+  --danger-text-rgb: 168 58 38;
+
+  /* Light frosted grey keeps panels raised against the white page. */
+  --surface-rgb: 246 248 250;
+  --surface-alt-rgb: 248 250 252;
+  --ghost-bg: rgb(var(--ghost-rgb) / 0.06);
+  --fill-subtle: rgb(var(--line-rgb) / 0.04);
+  --option-bg: #ffffff;
+  --scrim: rgba(10, 12, 14, 0.35);
+  --drop-shadow-color: rgba(10, 12, 14, 0.25);
+  --shadow: 0 18px 50px rgba(10, 12, 14, 0.12);
 }
 
 *,

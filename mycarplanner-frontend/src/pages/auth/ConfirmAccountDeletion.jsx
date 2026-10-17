@@ -4,6 +4,8 @@ import { api } from "../../services/api";
 import { clearSession } from "../../services/auth";
 import "../../components/DashboardLayout.css";
 import "./AuthShell.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 export default function ConfirmAccountDeletion() {
     const [searchParams] = useSearchParams();
@@ -51,9 +53,10 @@ export default function ConfirmAccountDeletion() {
 
     return (
         <div className="auth-shell">
+            <ThemeToggle className="theme-toggle-auth" />
             <div className="auth-shell-panel">
                 <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <img src="/logo.png" alt="myCarPlanner" />
+                    <Logo />
                 </Link>
                 <h1>Delete account</h1>
                 {loading && (

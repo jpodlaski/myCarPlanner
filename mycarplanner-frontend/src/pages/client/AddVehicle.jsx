@@ -5,6 +5,8 @@ import "../../components/VehicleConfigurator.css";
 import "../../components/DashboardLayout.css";
 import "./ClientDashboard.css";
 import "./AddVehicle.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 // Wrapper around VehicleConfigurator; returns to client dashboard after success.
 export default function AddVehicle() {
@@ -13,25 +15,22 @@ export default function AddVehicle() {
 
     return (
         <div className="client-dashboard-shell">
-            <div
-                className="client-dashboard-bg"
-                aria-hidden="true"
-            />
-            <div className="client-dashboard-veil" aria-hidden="true" />
-
             <div className="dashboard client-dashboard add-vehicle-page">
                 <div className="dashboard-header">
                     <div>
-                        <img className="logo" src="/logo.png" alt="myCarPlanner" />
+                        <Logo className="logo" />
                         <h1>Add a vehicle</h1>
                     </div>
-                    <button
-                        type="button"
-                        className="logout-btn"
-                        onClick={() => navigate("/client")}
-                    >
-                        Back to dashboard
-                    </button>
+                    <div className="dashboard-header-actions">
+                        <ThemeToggle />
+                        <button
+                            type="button"
+                            className="logout-btn"
+                            onClick={() => navigate("/client")}
+                        >
+                            Back to dashboard
+                        </button>
+                    </div>
                 </div>
 
                 {session?.token ? (

@@ -65,7 +65,7 @@
   margin-top: 0.75rem;
   border: 1px solid var(--danger-border);
   background: var(--danger-bg);
-  color: #f0b4aa;
+  color: var(--danger-text);
   border-radius: 0;
   padding: 0.55rem 0.9rem;
   font: inherit;
@@ -126,8 +126,8 @@
 
 .auth-form button:hover,
 .primary-btn:hover {
-  background: #489ff6;
-  border-color: #489ff6;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
   transform: translateY(-1px);
 }
 
@@ -156,7 +156,7 @@
 }
 
 .form-error {
-  color: #f0b4aa;
+  color: var(--danger-text);
   margin: 0.5rem 0 0;
 }
 

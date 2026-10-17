@@ -50,6 +50,7 @@ tmp/
 temp/
 *.log
 *.tmp
+*.hprof
 *.swp
 *~
 
@@ -106,4 +107,6 @@ HELP.md
 .cursor/
 agent-transcripts/
 .junie
+.opencode/
+.claude/
 

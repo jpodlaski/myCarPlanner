@@ -12,8 +12,8 @@
   min-width: 0;
   min-height: 0;
   height: 100%;
-  border: 1px solid rgba(243, 244, 242, 0.14);
-  background: rgba(16, 20, 24, 0.72);
+  border: 1px solid rgb(var(--line-rgb) / 0.14);
+  background: var(--surface);
   backdrop-filter: blur(10px);
   padding: 0.85rem 0.9rem 1rem;
   box-sizing: border-box;
@@ -42,8 +42,8 @@
 .dropoff-nav-btn {
   width: 2rem;
   height: 2rem;
-  border: 1px solid rgba(243, 244, 242, 0.22);
-  background: rgba(10, 12, 14, 0.35);
+  border: 1px solid rgb(var(--line-rgb) / 0.22);
+  background: var(--ghost-bg);
   color: var(--text-h);
   font: inherit;
   font-size: 1.15rem;
@@ -53,7 +53,7 @@
 
 .dropoff-nav-btn:hover:not(:disabled) {
   border-color: var(--snow);
-  background: rgba(243, 244, 242, 0.06);
+  background: var(--fill-subtle);
 }
 
 .dropoff-nav-btn:disabled {
@@ -102,12 +102,12 @@
 }
 
 .dropoff-day:hover:not(:disabled):not(.empty) {
-  border-color: rgba(243, 244, 242, 0.28);
-  background: rgba(243, 244, 242, 0.06);
+  border-color: rgb(var(--line-rgb) / 0.28);
+  background: var(--fill-subtle);
 }
 
 .dropoff-day.today:not(.selected) {
-  border-color: rgba(243, 244, 242, 0.35);
+  border-color: rgb(var(--line-rgb) / 0.35);
 }
 
 .dropoff-day.selected {
@@ -154,8 +154,8 @@
 }
 
 .dropoff-time-slot {
-  border: 1px solid rgba(243, 244, 242, 0.16);
-  background: rgba(10, 12, 14, 0.35);
+  border: 1px solid rgb(var(--line-rgb) / 0.16);
+  background: var(--ghost-bg);
   color: var(--text-h);
   padding: 0.55rem 0.35rem;
   font: inherit;
@@ -166,8 +166,8 @@
 }
 
 .dropoff-time-slot:hover:not(:disabled) {
-  border-color: rgba(243, 244, 242, 0.4);
-  background: rgba(243, 244, 242, 0.06);
+  border-color: rgb(var(--line-rgb) / 0.4);
+  background: var(--fill-subtle);
 }
 
 .dropoff-time-slot.selected {

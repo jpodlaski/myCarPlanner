@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { api } from "../../services/api";
 import "../../components/DashboardLayout.css";
 import "./AuthShell.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState("");
@@ -28,9 +30,10 @@ export default function ForgotPassword() {
 
     return (
         <div className="auth-shell">
+            <ThemeToggle className="theme-toggle-auth" />
             <div className="auth-shell-panel">
                 <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <img src="/logo.png" alt="myCarPlanner" />
+                    <Logo />
                 </Link>
                 <h1>Forgot password</h1>
                 <p className="auth-shell-lede">

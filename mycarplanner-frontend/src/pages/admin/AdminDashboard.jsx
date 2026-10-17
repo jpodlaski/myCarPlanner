@@ -8,6 +8,8 @@ import { formatCustomerDateTime } from "../../utils/dateTime";
 import "../../components/DashboardLayout.css";
 import "../client/ClientDashboard.css";
 import "./AdminDashboard.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 const SECTIONS = {
     workers: "Workers",
@@ -349,22 +351,17 @@ export default function AdminDashboard() {
 
     return (
         <div className="client-dashboard-shell admin-dashboard-shell">
-            <div
-                className="client-dashboard-bg"
-                aria-hidden="true"
-            />
-            <div className="client-dashboard-veil" aria-hidden="true" />
-
             <div className="dashboard client-dashboard admin-dashboard">
                 <div className="dashboard-header">
                     <div>
-                        <img className="logo" src="/logo.png" alt="myCarPlanner" />
+                        <Logo className="logo" />
                         <p className="dashboard-user">
                             Signed in as {session?.name}
                         </p>
                     </div>
 
                     <div className="dashboard-header-actions">
+                        <ThemeToggle />
                         <div className="menu" ref={menuRef}>
                             <button
                                 type="button"

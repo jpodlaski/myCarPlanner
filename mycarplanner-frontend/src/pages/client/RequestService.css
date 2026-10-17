@@ -40,12 +40,12 @@
 .request-service-form input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgb(var(--hairline-rgb) / 0.16);
   border-radius: 0;
   padding: 0.75rem 0.9rem;
   font: inherit;
   color: var(--text-h);
-  background: rgba(16, 20, 24, 0.72);
+  background: var(--surface);
   backdrop-filter: blur(10px);
 }
 
@@ -64,7 +64,7 @@
 }
 
 .request-service-form select option {
-  background: #12161a;
+  background: var(--option-bg);
   color: var(--text-h);
 }
 
@@ -90,16 +90,16 @@
 .request-schedule-error {
   margin: 0.85rem 0 0;
   padding: 0.75rem 0.9rem;
-  border: 1px solid rgba(196, 92, 74, 0.45);
-  background: rgba(196, 92, 74, 0.12);
-  color: #f0b4aa;
+  border: 1px solid rgb(var(--danger-rgb) / 0.45);
+  background: rgb(var(--danger-rgb) / 0.12);
+  color: var(--danger-text);
   font-size: 0.92rem;
   line-height: 1.45;
 }
 
 .request-service-form .request-field.has-error .dropoff-calendar,
 .request-service-form .request-field.has-error .dropoff-time-panel {
-  border-color: rgba(196, 92, 74, 0.55);
+  border-color: rgb(var(--danger-rgb) / 0.55);
 }
 
 
@@ -112,7 +112,7 @@
 }
 
 .request-word-count.at-limit {
-  color: #f0b4aa;
+  color: var(--danger-text);
 }
 
 .request-actions {
@@ -138,8 +138,8 @@
 }
 
 .request-service-page .submit-vehicle-btn:hover:not(:disabled) {
-  background: #489ff6;
-  border-color: #489ff6;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
   transform: translateY(-1px);
 }
 
@@ -150,7 +150,7 @@
 }
 
 .request-service-page .config-error {
-  color: #f0b4aa;
+  color: var(--danger-text);
   margin-top: 0.75rem;
 }
 

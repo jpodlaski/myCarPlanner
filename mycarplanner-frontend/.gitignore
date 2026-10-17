@@ -13,6 +13,7 @@ dist
 dist-ssr
 .vite
 *.local
+.eslintcache
 
 # Env / secrets
 .env

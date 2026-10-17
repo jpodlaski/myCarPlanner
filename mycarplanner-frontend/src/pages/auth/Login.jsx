@@ -4,6 +4,8 @@ import { api } from "../../services/api";
 import { saveSession } from "../../services/auth";
 import "../../components/DashboardLayout.css";
 import "./AuthShell.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 // Client login; email is used as the login field.
 export default function Login() {
@@ -31,9 +33,10 @@ export default function Login() {
 
     return (
         <div className="auth-shell">
+            <ThemeToggle className="theme-toggle-auth" />
             <div className="auth-shell-panel">
                 <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <img src="/logo.png" alt="myCarPlanner" />
+                    <Logo />
                 </Link>
                 <h1>Client login</h1>
 

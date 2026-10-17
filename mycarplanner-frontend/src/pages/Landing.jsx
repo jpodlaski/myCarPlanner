@@ -1,20 +1,20 @@
 import { Link } from "react-router-dom";
 import "./Landing.css";
+import Logo from "../components/Logo";
+import ThemeToggle from "../components/ThemeToggle";
 
-/** Public home — same blue shell and typography language as signed-in dashboards. */
+/** Public home — same shell and typography language as signed-in dashboards. */
 export default function Landing() {
     return (
         <div className="landing">
-            <div className="landing-bg" aria-hidden="true" />
-            <div className="landing-veil" aria-hidden="true" />
-
             <div className="landing-inner">
                 <header className="landing-header">
                     <Link to="/" className="logo" aria-label="myCarPlanner home">
-                        <img src="/logo.png" alt="myCarPlanner" />
+                        <Logo />
                     </Link>
 
                     <nav className="landing-actions" aria-label="Account">
+                        <ThemeToggle />
                         <Link to="/login" className="landing-btn landing-btn-solid">
                             Login
                         </Link>

@@ -12,6 +12,8 @@ import {
 import "../../components/DashboardLayout.css";
 import "../client/ClientDashboard.css";
 import "./EmployeeDashboard.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 function sectionLabels(consultant) {
     return {
@@ -523,22 +525,17 @@ export default function EmployeeDashboard() {
 
     return (
         <div className="client-dashboard-shell employee-dashboard-shell">
-            <div
-                className="client-dashboard-bg"
-                aria-hidden="true"
-            />
-            <div className="client-dashboard-veil" aria-hidden="true" />
-
             <div className="dashboard client-dashboard employee-dashboard">
                 <div className="dashboard-header">
                     <div>
-                        <img className="logo" src="/logo.png" alt="myCarPlanner" />
+                        <Logo className="logo" />
                         <p className="dashboard-user">
                             Signed in as {session?.name}
                         </p>
                     </div>
 
                     <div className="dashboard-header-actions">
+                        <ThemeToggle />
                         <div className="menu" ref={menuRef}>
                             <button
                                 type="button"

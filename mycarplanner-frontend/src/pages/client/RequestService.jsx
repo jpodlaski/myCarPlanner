@@ -7,6 +7,8 @@ import "../../components/DashboardLayout.css";
 import "./ClientDashboard.css";
 import "./AddVehicle.css";
 import "./RequestService.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 const MAX_DESCRIPTION_WORDS = 500;
 
@@ -116,25 +118,22 @@ export default function RequestService() {
 
     return (
         <div className="client-dashboard-shell">
-            <div
-                className="client-dashboard-bg"
-                aria-hidden="true"
-            />
-            <div className="client-dashboard-veil" aria-hidden="true" />
-
             <div className="dashboard client-dashboard add-vehicle-page request-service-page">
                 <div className="dashboard-header">
                     <div>
-                        <img className="logo" src="/logo.png" alt="myCarPlanner" />
+                        <Logo className="logo" />
                         <h1>Request service</h1>
                     </div>
-                    <button
-                        type="button"
-                        className="logout-btn"
-                        onClick={() => navigate("/client")}
-                    >
-                        Back to dashboard
-                    </button>
+                    <div className="dashboard-header-actions">
+                        <ThemeToggle />
+                        <button
+                            type="button"
+                            className="logout-btn"
+                            onClick={() => navigate("/client")}
+                        >
+                            Back to dashboard
+                        </button>
+                    </div>
                 </div>
 
                 {loading && <p className="request-service-status">Loading…</p>}

@@ -3,8 +3,8 @@
 .admin-dashboard .admin-add-worker-panel {
   margin-bottom: 1.25rem;
   padding: 1rem 1.1rem 1.15rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(16, 20, 24, 0.72);
+  border: 1px solid rgb(var(--hairline-rgb) / 0.14);
+  background: var(--surface);
   backdrop-filter: blur(10px);
   animation: panel-fade 0.28s ease-out both;
 }
@@ -59,12 +59,12 @@
 .admin-dashboard .worker-row-actions select {
   flex: 1 1 12rem;
   min-width: 10rem;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgb(var(--hairline-rgb) / 0.16);
   border-radius: 0;
   padding: 0.65rem 0.85rem;
   font: inherit;
   color: var(--text-h);
-  background: rgba(16, 20, 24, 0.72);
+  background: var(--surface);
 }
 
 .admin-dashboard .worker-row-actions select:focus {

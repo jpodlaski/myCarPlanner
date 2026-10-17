@@ -4,33 +4,10 @@
   width: 100%;
   overflow: hidden;
   color: var(--text-h);
-  background: var(--ink);
+  background: var(--bg);
   text-align: left;
   isolation: isolate;
   animation: landing-fade-in 0.55s ease-out both;
-}
-
-.landing-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background-color: #0a3d7a;
-  background-image: linear-gradient(165deg, #2791f5 0%, #0d4a94 38%, #061525 100%);
-  pointer-events: none;
-}
-
-.landing-veil {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(39, 145, 245, 0.14) 0%,
-      rgba(8, 10, 12, 0.32) 42%,
-      rgba(6, 10, 18, 0.62) 100%
-    );
 }
 
 .landing-inner {
@@ -121,12 +98,12 @@
 }
 
 .landing-btn-solid:hover {
-  background: #489ff6;
-  border-color: #489ff6;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .landing-btn-ghost {
-  background: rgba(10, 12, 14, 0.35);
+  background: var(--ghost-bg);
   color: var(--text-h);
   border: 1px solid var(--border);
   backdrop-filter: blur(8px);

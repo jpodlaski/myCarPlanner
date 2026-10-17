@@ -1,16 +1,39 @@
-# React + Vite
+# myCarPlanner frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite single-page app for myCarPlanner. The root [README](../README.md) covers the
+full stack, the demo walkthrough and the API.
 
-Currently, two official plugins are available:
+## Commands
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev      # Vite dev server on :5173
+npm run build    # production build to dist/
+npm run lint     # ESLint
+```
 
-## React Compiler
+The dev server expects the API on `http://localhost:8080` (see `src/services/api.js`).
+Running the whole stack from the repo root with `docker compose up` is usually simpler:
+the frontend container bind-mounts this directory, so UI edits hot-reload.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Layout
 
-## Expanding the ESLint configuration
+| Path | Purpose |
+|------|---------|
+| `src/pages/` | Route components: `Landing`, `auth/`, `client/`, `employee/`, `admin/` |
+| `src/components/` | Shared UI: `Logo`, `ThemeToggle`, pickers, forms |
+| `src/theme/` | Light/dark theme provider, hook and toggle |
+| `src/services/` | Axios client and localStorage session helpers |
+| `src/constants/` | Role names and workshop details |
+| `src/utils/` | Date/time helpers |
+| `public/` | `logo.svg`, `logo-inverse.svg`, favicon |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Theming
+
+`src/index.css` defines both palettes as CSS custom properties (`:root` = dark,
+`[data-theme="light"]` = light). `src/theme/ThemeProvider.jsx` follows the OS setting until
+the user toggles, then persists the choice to `localStorage["mycarplanner_theme"]`.
+`index.html` applies it before first paint.
+
+Routes under `/client`, `/employee` and `/admin` are gated client-side by `PrivateRoute`.
+The API enforces access on every call, so the guard is UX only.

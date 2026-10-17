@@ -10,6 +10,7 @@ Web application for planning vehicle service at a workshop. Clients register, ad
 |-------|------------|
 | API | Spring Boot 4, Java 21, Spring Security (JWT), JPA, Flyway |
 | Database | PostgreSQL 16 |
+| Rate limiting | Redis 7 (sliding window per IP / user) |
 | Frontend | React (Vite), Axios, React Router |
 | Email rendering | Clojure HTTP service (`clojure/email-renderer`) |
 | Local SMTP | MailHog |
@@ -26,6 +27,7 @@ Web application for planning vehicle service at a workshop. Clients register, ad
 - **Auth** — BCrypt passwords, Bearer JWT; actor identity always from the token (not from request body IDs)
 - **Emails** — async outbox → Clojure HTML/text templates → SMTP (MailHog locally); completion attaches a branded PDF invoice
 - **Schema** — Flyway migrations; Hibernate `validate` only
+- **UI** — light / dark theme; follows the OS until you toggle it, then remembers your choice
 
 ---
 
@@ -38,7 +40,7 @@ Build the API JAR, then start the full stack:
 docker compose up --build
 ```
 
-Five containers should be running:
+Six containers should be running (`db-init` exits once it has created the databases):
 
 | Service | URL |
 |---------|-----|
@@ -47,6 +49,7 @@ Five containers should be running:
 | MailHog UI | http://localhost:8025 |
 | Email renderer | http://localhost:3000 |
 | Postgres | `localhost:5432` (`mycarplanner_db`) |
+| Redis | `localhost:6379` |
 
 ```bash
 docker compose ps
@@ -71,7 +74,7 @@ rm -rf pgdata
 docker compose up --build
 ```
 
-> **Rebrand note:** the databases were renamed to `mycarplanner_db` / `mycarplanner_test` and browser storage keys to `mycarplanner_*`. Existing local data is not migrated: run `docker compose down && rm -rf pgdata` once and sign in again. The screenshot `docs/preview.png` predates the rebrand and may be refreshed.
+> **Rebrand note:** the databases were renamed to `mycarplanner_db` / `mycarplanner_test` and browser storage keys to `mycarplanner_*`. Existing local data is not migrated: run `docker compose down && rm -rf pgdata` once and sign in again.
 
 Stop containers **before** deleting `pgdata` (otherwise Postgres can leave a corrupted data directory). The API waits until Postgres is healthy, then seeds `admin` / `admin` on an empty DB.
 
@@ -288,6 +291,12 @@ Runs in Docker with the stack (no local Node required for the demo). The fronten
 
 Optional local UI: `cd mycarplanner-frontend && npm install && npm run dev`
 
+### Theming
+
+The UI ships a light and a dark palette. Both are CSS custom properties in `src/index.css` (`:root` holds dark, `[data-theme="light"]` holds light), and `src/theme/` owns the switch. The theme follows `prefers-color-scheme` on a first visit; toggling it stores an explicit choice in `localStorage["mycarplanner_theme"]` and stops following the OS. An inline script in `index.html` applies that choice before first paint so there is no flash. Remove the key to fall back to the OS setting.
+
+Brand assets live in `mycarplanner-frontend/public/`. `Logo.jsx` picks `logo.svg` (dark text, for the light theme) or `logo-inverse.svg` (white text, for the dark theme) — regenerate the inverse from `logo.svg` if the logo ever changes. The favicon is `logo.svg`, with `favicon.ico` as the fallback.
+
 ---
 
 ## Database
@@ -339,17 +348,20 @@ mycarplanner/
 │   ├── catalog/          Aston Martin vehicle catalog JSON
 │   └── email/            Invoice / email logo asset
 ├── src/test/java/...     Integration tests
-├── mycarplanner-frontend/src/
-│   ├── pages/
-│   │   ├── Landing.jsx
-│   │   ├── auth/         Login, register, password, verify, delete
-│   │   ├── client/       Dashboard, add vehicle, request service
-│   │   ├── employee/     Consultant / mechanic dashboard
-│   │   └── admin/        Management dashboard
-│   ├── components/
-│   ├── services/
-│   ├── constants/
-│   └── utils/
+├── mycarplanner-frontend/
+│   ├── public/           Brand assets (logo.svg, logo-inverse.svg, favicon)
+│   └── src/
+│       ├── pages/
+│       │   ├── Landing.jsx
+│       │   ├── auth/     Login, register, password, verify, delete
+│       │   ├── client/   Dashboard, add vehicle, request service
+│       │   ├── employee/ Consultant / mechanic dashboard
+│       │   └── admin/    Management dashboard
+│       ├── components/   Shared UI (logo, theme toggle, pickers, forms)
+│       ├── theme/        Light/dark provider, hook and toggle
+│       ├── services/     Axios client and session helpers
+│       ├── constants/    Roles and workshop details
+│       └── utils/        Date/time helpers
 ├── clojure/email-renderer/
 ├── .github/workflows/    CI
 └── docker-compose.yml

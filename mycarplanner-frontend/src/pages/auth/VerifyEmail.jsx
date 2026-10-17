@@ -3,6 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../services/api";
 import "../../components/DashboardLayout.css";
 import "./AuthShell.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 export default function VerifyEmail() {
     const [searchParams] = useSearchParams();
@@ -43,9 +45,10 @@ export default function VerifyEmail() {
 
     return (
         <div className="auth-shell">
+            <ThemeToggle className="theme-toggle-auth" />
             <div className="auth-shell-panel">
                 <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <img src="/logo.png" alt="myCarPlanner" />
+                    <Logo />
                 </Link>
                 <h1>Verify email</h1>
                 {loading && <p className="auth-shell-lede">Verifying your email…</p>}

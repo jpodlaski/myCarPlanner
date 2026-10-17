@@ -3,7 +3,7 @@
 .employee-dashboard .worker-actions-panel {
   margin-top: 1rem;
   padding-top: 0.95rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgb(var(--hairline-rgb) / 0.1);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -23,12 +23,12 @@
 .employee-dashboard .worker-field input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgb(var(--hairline-rgb) / 0.16);
   border-radius: 0;
   padding: 0.7rem 0.85rem;
   font: inherit;
   color: var(--text-h);
-  background: rgba(10, 12, 14, 0.35);
+  background: var(--ghost-bg);
 }
 
 .employee-dashboard .worker-field input:focus {
@@ -91,7 +91,7 @@
 }
 
 .employee-dashboard .capacity-status-full {
-  color: #d4a19a;
+  color: var(--danger-text);
 }
 
 .employee-dashboard .worker-action-row .primary-btn:disabled {
@@ -126,12 +126,12 @@
 .employee-dashboard .archive-find input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgb(var(--hairline-rgb) / 0.16);
   border-radius: 0;
   padding: 0.75rem 0.9rem;
   font: inherit;
   color: var(--text-h);
-  background: rgba(16, 20, 24, 0.72);
+  background: var(--surface);
   backdrop-filter: blur(10px);
 }
 

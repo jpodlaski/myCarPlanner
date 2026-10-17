@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../services/api";
 import "../../components/DashboardLayout.css";
 import "./AuthShell.css";
+import Logo from "../../components/Logo";
+import ThemeToggle from "../../components/ThemeToggle";
 
 // Client self-registration; account must be email-verified before login.
 export default function Register() {
@@ -39,9 +41,10 @@ export default function Register() {
 
     return (
         <div className="auth-shell">
+            <ThemeToggle className="theme-toggle-auth" />
             <div className="auth-shell-panel">
                 <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <img src="/logo.png" alt="myCarPlanner" />
+                    <Logo />
                 </Link>
                 <h1>Create account</h1>
 
