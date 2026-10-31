@@ -1,0 +1,83 @@
+{
+  "modelLines": [
+    {
+      "id": "hussarya-thunder",
+      "name": "Thunder",
+      "era": "2024-present",
+      "bodyStyles": [
+        {
+          "id": "supercar",
+          "name": "Supercar",
+          "configurations": [
+            {
+              "id": "thunder-supercar-5.0-na-v8-7a",
+              "displayName": "Thunder V8",
+              "engine": "5.0L Naturally Aspirated V8",
+              "power": "560 PS",
+              "transmission": "7-speed Automatic",
+              "drivetrain": "RWD"
+            },
+            {
+              "id": "thunder-supercar-6.2-na-v10-8a",
+              "displayName": "Thunder V10",
+              "engine": "6.2L Naturally Aspirated V10",
+              "power": "690 PS",
+              "transmission": "8-speed Automatic",
+              "drivetrain": "RWD"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hussarya-bastion",
+      "name": "Bastion",
+      "era": "2022-present",
+      "bodyStyles": [
+        {
+          "id": "suv",
+          "name": "SUV",
+          "configurations": [
+            {
+              "id": "bastion-suv-5.0-na-v8-7a",
+              "displayName": "Bastion V8",
+              "engine": "5.0L Naturally Aspirated V8",
+              "power": "560 PS",
+              "transmission": "7-speed Automatic",
+              "drivetrain": "AWD"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hussarya-zefir",
+      "name": "Zefir",
+      "era": "2024-present",
+      "bodyStyles": [
+        {
+          "id": "roadster",
+          "name": "Roadster",
+          "configurations": [
+            {
+              "id": "zefir-roadster-5.0-na-v8-7a",
+              "displayName": "Zefir V8",
+              "engine": "5.0L Naturally Aspirated V8",
+              "power": "560 PS",
+              "transmission": "7-speed Automatic",
+              "drivetrain": "RWD"
+            },
+            {
+              "id": "zefir-roadster-6.2-na-v10-8a",
+              "displayName": "Zefir V10",
+              "engine": "6.2L Naturally Aspirated V10",
+              "power": "690 PS",
+              "transmission": "8-speed Automatic",
+              "drivetrain": "RWD"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

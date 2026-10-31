@@ -51,7 +51,7 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
     useEffect(() => {
         api.get("/vehicles/catalog")
             .then((res) => setCatalog(res.data))
-            .catch(() => setError("Could not load Aston Martin catalog."))
+            .catch(() => setError("Could not load Hussarya catalog."))
             .finally(() => setLoading(false));
     }, []);
 
@@ -284,7 +284,7 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
     };
 
     if (loading) {
-        return <p>Loading Aston Martin catalog…</p>;
+        return <p>Loading Hussarya catalog…</p>;
     }
 
     if (!catalog) {
@@ -332,7 +332,7 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
                         <input
                             className="model-search"
                             type="search"
-                            placeholder="Search models (e.g. DB12, Valhalla)"
+                            placeholder="Search models"
                             value={modelQuery}
                             onChange={(e) => setModelQuery(e.target.value)}
                         />

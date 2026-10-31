@@ -109,15 +109,15 @@ class AuthorizationAccessTest {
 
         Vehicle vehicleA = new Vehicle();
         vehicleA.setVin("VINALICE000000001");
-        vehicleA.setConfigurationId("db12-coupe-4.0-tt-v8-8a");
-        vehicleA.setModelLine("DB12");
-        vehicleA.setModel("DB12 Coupe");
-        vehicleA.setProductionEra("2023–present");
+        vehicleA.setConfigurationId("thunder-supercar-5.0-na-v8-7a");
+        vehicleA.setModelLine("Thunder");
+        vehicleA.setModel("Thunder V8");
+        vehicleA.setProductionEra("2024-present");
         vehicleA.setProductionYear(2024);
-        vehicleA.setBodyStyle("Coupe");
-        vehicleA.setEngine("4.0L Twin-Turbo V8");
-        vehicleA.setPower("680 PS");
-        vehicleA.setTransmission("8-speed Automatic");
+        vehicleA.setBodyStyle("Supercar");
+        vehicleA.setEngine("5.0L Naturally Aspirated V8");
+        vehicleA.setPower("560 PS");
+        vehicleA.setTransmission("7-speed Automatic");
         vehicleA.setDrivetrain("RWD");
         vehicleA.setCustomer(customerA);
         vehicleA = vehicleRepository.save(vehicleA);
@@ -163,7 +163,7 @@ class AuthorizationAccessTest {
         scheduledBooking = new ServiceBooking();
         scheduledBooking.setVehicle(vehicleA);
         scheduledBooking.setCustomerName("Alice Client");
-        scheduledBooking.setCarModel("DB12 Coupe");
+        scheduledBooking.setCarModel("Thunder V8");
         scheduledBooking.setCustomerDescription("Noise");
         scheduledBooking.setAvailabilityNotes("mornings");
         scheduledBooking.setStatus(BookingStatus.SCHEDULED);
@@ -172,7 +172,7 @@ class AuthorizationAccessTest {
         readyBooking = new ServiceBooking();
         readyBooking.setVehicle(vehicleA);
         readyBooking.setCustomerName("Alice Client");
-        readyBooking.setCarModel("DB12 Coupe");
+        readyBooking.setCarModel("Thunder V8");
         readyBooking.setCustomerDescription("Ready job");
         readyBooking.setAvailabilityNotes("afternoons");
         readyBooking.setStatus(BookingStatus.READY_FOR_WORK);
@@ -181,7 +181,7 @@ class AuthorizationAccessTest {
         assignedToWorkerA = new ServiceBooking();
         assignedToWorkerA.setVehicle(vehicleA);
         assignedToWorkerA.setCustomerName("Alice Client");
-        assignedToWorkerA.setCarModel("DB12 Coupe");
+        assignedToWorkerA.setCarModel("Thunder V8");
         assignedToWorkerA.setCustomerDescription("Brakes");
         assignedToWorkerA.setAvailabilityNotes("afternoons");
         assignedToWorkerA.setStatus(BookingStatus.IN_PROGRESS);

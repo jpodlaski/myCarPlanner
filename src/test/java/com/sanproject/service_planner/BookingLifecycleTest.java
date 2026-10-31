@@ -92,15 +92,15 @@ class BookingLifecycleTest {
 
         vehicle = new Vehicle();
         vehicle.setVin("VINCASEY000000001");
-        vehicle.setConfigurationId("db12-coupe-4.0-tt-v8-8a");
-        vehicle.setModelLine("DB12");
-        vehicle.setModel("DB12 Coupe");
-        vehicle.setProductionEra("2023–present");
+        vehicle.setConfigurationId("thunder-supercar-5.0-na-v8-7a");
+        vehicle.setModelLine("Thunder");
+        vehicle.setModel("Thunder V8");
+        vehicle.setProductionEra("2024-present");
         vehicle.setProductionYear(2024);
-        vehicle.setBodyStyle("Coupe");
-        vehicle.setEngine("4.0L Twin-Turbo V8");
-        vehicle.setPower("680 PS");
-        vehicle.setTransmission("8-speed Automatic");
+        vehicle.setBodyStyle("Supercar");
+        vehicle.setEngine("5.0L Naturally Aspirated V8");
+        vehicle.setPower("560 PS");
+        vehicle.setTransmission("7-speed Automatic");
         vehicle.setDrivetrain("RWD");
         vehicle.setCustomer(customer);
         vehicle = vehicleRepository.save(vehicle);

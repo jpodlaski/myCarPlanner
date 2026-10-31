@@ -13,11 +13,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Loads aston-martin-catalog.json once at startup and indexes configurationId → full specs.
- * The catalog is the single source of truth: clients pick a config in the UI; the API rejects
- * unknown configurationIds so users cannot invent arbitrary models via the API.
- */
 @Service
 public class VehicleCatalogService {
 
@@ -32,7 +27,7 @@ public class VehicleCatalogService {
     // Build an in-memory index of configurationId → resolved vehicle attributes.
     @PostConstruct
     void loadCatalog() throws IOException {
-        try (InputStream input = new ClassPathResource("aston-martin-catalog.json").getInputStream()) {
+        try (InputStream input = new ClassPathResource("hussarya-catalog.json").getInputStream()) {
             catalog = objectMapper.readValue(input, VehicleCatalog.class);
         }
         Map<String, ResolvedVehicleConfiguration> index = new HashMap<>();

@@ -90,8 +90,8 @@ class AccountDeletionTest {
         customer = customerRepository.save(customer);
 
         vehicle = new Vehicle();
-        vehicle.setModel("DB12 Coupe");
-        vehicle.setModelLine("DB12");
+        vehicle.setModel("Thunder V8");
+        vehicle.setModelLine("Thunder");
         vehicle.setVin("SCFRMDELTEST0001");
         vehicle.setCustomer(customer);
         vehicle.setRemovedFromAccount(false);
@@ -115,7 +115,7 @@ class AccountDeletionTest {
         ServiceBooking booking = new ServiceBooking();
         booking.setVehicle(vehicle);
         booking.setCustomerName("Pat Client");
-        booking.setCarModel("DB12 Coupe");
+        booking.setCarModel("Thunder V8");
         booking.setCustomerDescription("Noise");
         booking.setEstimatedDropOffTime(LocalDateTime.now().plusDays(3));
         booking.setStatus(BookingStatus.SCHEDULED);
