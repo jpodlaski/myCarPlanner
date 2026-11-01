@@ -5,6 +5,7 @@ import com.sanproject.service_planner.domain.Worker;
 import com.sanproject.service_planner.dto.AdminBookingResponse;
 import com.sanproject.service_planner.dto.CreateAdminRequest;
 import com.sanproject.service_planner.dto.CreateWorkerRequest;
+import com.sanproject.service_planner.dto.PageResponse;
 import com.sanproject.service_planner.dto.UpdateWorkerRoleRequest;
 import com.sanproject.service_planner.security.AuthSupport;
 import com.sanproject.service_planner.service.AdminService;
@@ -21,11 +22,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-// Management API: workers CRUD and booking history; authorization from JWT.
+/** Management API: worker CRUD and full booking history. */
 @RestController
 @RequestMapping("/admins")
 public class AdminController {
@@ -59,9 +61,12 @@ public class AdminController {
     }
 
     @GetMapping("/bookings")
-    public List<AdminBookingResponse> getBookings() {
+    public PageResponse<AdminBookingResponse> getBookings(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "") String q) {
         authSupport.requireCanManageWorkers();
-        return bookingService.getAdminBookings();
+        return bookingService.getAdminBookings(page, size, q);
     }
 
     @PostMapping("/workers")

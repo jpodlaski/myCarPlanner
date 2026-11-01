@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-// Vehicle persistence; customer queries exclude soft-deleted rows.
+/** Vehicle persistence; customer queries exclude soft-deleted rows. */
 public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     // Excludes soft-deleted vehicles from the client dashboard.

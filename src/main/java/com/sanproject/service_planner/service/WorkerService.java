@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
-// Workshop staff CRUD; mutating calls require management (enforced by caller via AuthSupport).
+/** Workshop staff CRUD; callers must check management rights via AuthSupport before mutating. */
 @Service
 public class WorkerService {
 

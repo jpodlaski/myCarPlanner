@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotEmpty;
 import java.math.BigDecimal;
 import java.util.List;
 
-// Worker claims an unclaimed booking; actor comes from the JWT, not the body.
+/** Technician claims an unclaimed booking; the actor comes from the JWT. */
 public class ClaimBookingRequest {
 
     @DecimalMin(value = "0.01", message = "Estimated cost must be positive")

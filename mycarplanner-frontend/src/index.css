@@ -1,101 +1,101 @@
-/* Theme tokens: :root is the dark palette, [data-theme="light"] the light one.
-   Channel triplets (rgb(var(--hairline-rgb) / 0.16)) flip hue but keep per-rule alpha. */
+/* Design tokens. :root is the light palette (the default), [data-theme="dark"] the dark one.
+   Every text/background pair below meets WCAG 2.2 AA (4.5:1 body text, 3:1 UI boundaries). */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* myCarPlanner brand: white + #2791F5 */
-  --brand-blue: #2791f5;
-  --snow: #ffffff;
-  --ink: #0a0c0e;
-  --ink-soft: #14181c;
+  --bg: #ffffff;
+  --bg-alt: #f5f5f7;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f5f5f7;
+  --text: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --separator: #d2d2d7;
+  --field-border: #86868b;
 
-  /* Channel triplets — these flip between themes. */
-  --hairline-rgb: 255 255 255;
-  --line-rgb: 243 244 242;
-  --surface-rgb: 16 20 24;
-  --surface-alt-rgb: 12 15 18;
-  --ghost-rgb: 10 12 14;
-  --accent-rgb: 39 145 245;
-  --danger-rgb: 196 92 74;
-  --danger-text-rgb: 240 180 170;
+  --accent: #0071e3;
+  --accent-hover: #0062c4;
+  --accent-on: #ffffff;
+  --link: #0066cc;
+  --accent-tint: rgb(0 113 227 / 0.08);
 
-  --text: #b8bbb6;
-  --text-h: #ffffff;
-  --bg: #0a0c0e;
-  --bg-elevated: #161b1f;
-  --border: rgb(var(--hairline-rgb) / 0.16);
+  --danger: #d70015;
+  --danger-tint: rgb(215 0 21 / 0.07);
+  --success: #1a7f37;
+  --success-tint: rgb(26 127 55 / 0.08);
+  --warning: #9a5b00;
 
-  --accent: #2791f5;
-  --accent-bright: #2791f5;
-  --accent-hover: #489ff6;
-  --accent-soft: #93c5fd;
-  --accent-bg: rgb(var(--accent-rgb) / 0.18);
-  --accent-border: rgb(var(--accent-rgb) / 0.55);
+  --nav-bg: rgb(255 255 255 / 0.8);
+  --nav-bg-solid: #ffffff;
+  --local-nav-bg: rgb(255 255 255 / 0.72);
+  --scrim: rgb(0 0 0 / 0.4);
+  --shadow-card: 0 4px 24px rgb(0 0 0 / 0.06);
+  --shadow-pop: 0 12px 40px rgb(0 0 0 / 0.14);
 
-  --danger: #c45c4a;
-  --danger-text: rgb(var(--danger-text-rgb));
-  --danger-bg: rgb(var(--danger-rgb) / 0.12);
-  --danger-border: rgb(var(--danger-rgb) / 0.45);
+  /* Car photography is shot on white, so its tile stays light in both themes. */
+  --studio: #ffffff;
 
-  /* Frosted panels, ghost buttons and overlay scrims. */
-  --surface: rgb(var(--surface-rgb) / 0.72);
-  --surface-strong: rgb(var(--surface-rgb) / 0.94);
-  --surface-opaque: rgb(var(--surface-rgb) / 0.96);
-  --surface-alt: rgb(var(--surface-alt-rgb) / 0.94);
-  --ghost-bg: rgb(var(--ghost-rgb) / 0.35);
-  --fill-subtle: rgb(var(--line-rgb) / 0.06);
-  --option-bg: #12161a;
-  --scrim: rgba(8, 10, 12, 0.45);
-  --drop-shadow-color: rgba(0, 0, 0, 0.55);
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  --radius-card: 18px;
+  --radius-field: 12px;
+  --radius-pill: 980px;
 
-  /* SF Pro on Apple; system-ui elsewhere (Segoe UI / Roboto as platform defaults). */
-  --font-display: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+  --content-width: 980px;
+  --wide-width: 1200px;
+  --gutter: max(22px, env(safe-area-inset-left));
+  --nav-height: 48px;
+  --local-nav-height: 52px;
+
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue",
     "Segoe UI", system-ui, sans-serif;
-  --font-ui: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont,
+  --font-text: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue",
     "Segoe UI", system-ui, sans-serif;
 
-  font-family: var(--font-ui);
-  font-size: 16px;
-  line-height: 1.5;
+  --ease: cubic-bezier(0.28, 0.11, 0.32, 1);
+
+  font-family: var(--font-text);
+  font-size: 100%;
+  line-height: 1.47059;
+  letter-spacing: -0.022em;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
-[data-theme="light"] {
-  color-scheme: light;
+[data-theme="dark"] {
+  color-scheme: dark;
 
-  --text: #4c5258;
-  --text-h: #0a0c0e;
-  --bg: #ffffff;
-  --bg-elevated: #f4f6f8;
+  --bg: #000000;
+  --bg-alt: #161617;
+  --surface: #1d1d1f;
+  --surface-raised: #2c2c2e;
+  --surface-sunken: #161617;
+  --text: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --separator: #424245;
+  --field-border: #86868b;
 
-  /* Borders invert to ink so they stay visible on white. */
-  --hairline-rgb: 10 12 14;
-  --line-rgb: 10 12 14;
+  --accent: #0071e3;
+  --accent-hover: #0062c4;
+  --link: #2997ff;
+  --accent-tint: rgb(41 151 255 / 0.14);
 
-  --accent: #1b7fe0;
-  --accent-bright: #1b7fe0;
-  --accent-hover: #2791f5;
-  --accent-soft: #1b7fe0;
-  --accent-bg: rgb(var(--accent-rgb) / 0.1);
-  --accent-border: rgb(var(--accent-rgb) / 0.45);
+  --danger: #ff6961;
+  --danger-tint: rgb(255 105 97 / 0.12);
+  --success: #30d158;
+  --success-tint: rgb(48 209 88 / 0.12);
+  --warning: #ffd60a;
 
-  --danger-text-rgb: 168 58 38;
-
-  /* Light frosted grey keeps panels raised against the white page. */
-  --surface-rgb: 246 248 250;
-  --surface-alt-rgb: 248 250 252;
-  --ghost-bg: rgb(var(--ghost-rgb) / 0.06);
-  --fill-subtle: rgb(var(--line-rgb) / 0.04);
-  --option-bg: #ffffff;
-  --scrim: rgba(10, 12, 14, 0.35);
-  --drop-shadow-color: rgba(10, 12, 14, 0.25);
-  --shadow: 0 18px 50px rgba(10, 12, 14, 0.12);
+  --nav-bg: rgb(22 22 23 / 0.8);
+  --nav-bg-solid: #161617;
+  --local-nav-bg: rgb(22 22 23 / 0.72);
+  --scrim: rgb(0 0 0 / 0.6);
+  --shadow-card: none;
+  --shadow-pop: 0 12px 40px rgb(0 0 0 / 0.5);
 }
 
 *,
@@ -104,26 +104,32 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-padding-top: calc(var(--nav-height) + var(--local-nav-height) + 1rem);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100svh;
   background: var(--bg);
+  font-size: 1.0625rem;
 }
 
 #root {
-  width: 100%;
+  display: flex;
+  flex-direction: column;
   min-height: 100svh;
-  margin: 0;
-  text-align: initial;
-  border: none;
-}
-
-a {
-  color: inherit;
 }
 
 img {
   max-width: 100%;
+  height: auto;
   display: block;
 }
 
@@ -132,13 +138,417 @@ input,
 textarea,
 select {
   font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
 }
 
 h1,
 h2,
-h3 {
-  font-family: var(--font-ui);
-  font-weight: 500;
-  color: var(--text-h);
-  letter-spacing: -0.02em;
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.003em;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgb(0 113 227 / 0.25);
+}
+
+/* ---------- Utilities ---------- */
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1000;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: 0.875rem;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(-200%);
+  transition: transform 0.2s var(--ease);
+}
+
+.skip-link:focus {
+  opacity: 1;
+  transform: translateY(0);
+  text-decoration: none;
+}
+
+.container {
+  width: 100%;
+  max-width: calc(var(--content-width) + var(--gutter) * 2);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.container-wide {
+  max-width: calc(var(--wide-width) + var(--gutter) * 2);
+}
+
+/* ---------- Buttons ---------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  min-height: 44px;
+  padding: 0.6rem 1.35rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.2s var(--ease),
+    border-color 0.2s var(--ease),
+    color 0.2s var(--ease);
+}
+
+.button:hover {
+  text-decoration: none;
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.button-small {
+  min-height: 36px;
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+}
+
+.button-primary {
+  background: var(--accent);
+  color: var(--accent-on);
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.button-secondary {
+  background: transparent;
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: var(--link);
+  color: var(--bg);
+}
+
+.button-neutral {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+[data-theme="dark"] .button-neutral {
+  background: var(--surface-raised);
+}
+
+.button-neutral:hover:not(:disabled) {
+  background: var(--separator);
+}
+
+.button-danger {
+  background: transparent;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.button-danger:hover:not(:disabled) {
+  background: var(--danger-tint);
+}
+
+.button-block {
+  width: 100%;
+}
+
+/* Apple-style inline text action: "Learn more ›" */
+.link-chevron {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  min-height: 24px;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--link);
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.link-chevron::after {
+  content: "";
+  width: 0.42em;
+  height: 0.42em;
+  margin-left: 0.15em;
+  border-top: 0.11em solid currentColor;
+  border-right: 0.11em solid currentColor;
+  transform: rotate(45deg);
+}
+
+.link-chevron:hover {
+  text-decoration: underline;
+}
+
+.link-chevron-back::after {
+  display: none;
+}
+
+.link-chevron-back::before {
+  content: "";
+  width: 0.42em;
+  height: 0.42em;
+  margin-right: 0.2em;
+  border-bottom: 0.11em solid currentColor;
+  border-left: 0.11em solid currentColor;
+  transform: rotate(45deg);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+/* ---------- Form fields ---------- */
+
+.field {
+  display: block;
+  min-width: 0;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.016em;
+}
+
+.input,
+.select,
+.textarea {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-field);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgb(0 113 227 / 0.3);
+}
+
+.input[aria-invalid="true"],
+.select[aria-invalid="true"],
+.textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.textarea {
+  min-height: 7.5rem;
+  resize: vertical;
+  line-height: 1.47;
+}
+
+.select {
+  padding-right: 2.6rem;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2386868b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+}
+
+.field-hint {
+  margin-top: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  letter-spacing: -0.008em;
+}
+
+.field-error {
+  margin-top: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--danger);
+  letter-spacing: -0.008em;
+}
+
+/* Floating-label text field (Apple Account style). The <label> is a real, programmatic label. */
+.text-field {
+  position: relative;
+}
+
+.text-field-input {
+  display: block;
+  width: 100%;
+  height: 56px;
+  padding: 1.45rem 1rem 0.45rem;
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-field);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.0625rem;
+  line-height: 1.2;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.text-field-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgb(0 113 227 / 0.3);
+}
+
+.text-field-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.text-field-label {
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  right: 1rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 1.0625rem;
+  pointer-events: none;
+  transform-origin: left top;
+  transition: transform 0.15s var(--ease);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-field-input:focus + .text-field-label,
+.text-field-input:not(:placeholder-shown) + .text-field-label,
+.text-field-input:-webkit-autofill + .text-field-label {
+  transform: translateY(-0.7rem) scale(0.72);
+}
+
+/* ---------- Forms & messages ---------- */
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.message {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-field);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  letter-spacing: -0.016em;
+}
+
+.message-error {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+
+.message-success {
+  background: var(--success-tint);
+  color: var(--success);
+}
+
+.message-info {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+.status-text {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

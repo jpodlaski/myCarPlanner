@@ -1,6 +1,6 @@
 package com.sanproject.service_planner.dto;
 
-// Returned on login/register; token is the Bearer JWT; role/id/name drive frontend routing.
+/** Login response: the Bearer JWT plus role, id and name for frontend routing. */
 public class AuthResponse {
 
     private String token;

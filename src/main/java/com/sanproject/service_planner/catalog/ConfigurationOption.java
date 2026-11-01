@@ -2,7 +2,7 @@ package com.sanproject.service_planner.catalog;
 
 import com.sanproject.service_planner.domain.Vehicle;
 
-// Specific engine/transmission combination; id is stored on the Vehicle as configurationId.
+/** Engine/transmission combination; its id is stored on Vehicle as configurationId. */
 public class ConfigurationOption {
 
     private String id;

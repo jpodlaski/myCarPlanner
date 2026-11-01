@@ -13,10 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Central place for "who is calling this endpoint?".
- * Controllers never trust actor ids from the JSON body (that would enable IDOR attacks —
- * e.g. claiming another user's booking by sending their customerId). Instead they ask
- * AuthSupport, which reads the AuthUser put into SecurityContext by JwtAuthenticationFilter.
+ * Resolves the caller from the AuthUser that JwtAuthenticationFilter put in the SecurityContext.
+ * Controllers never take actor ids from the request body, which would allow IDOR attacks.
  */
 @Component
 public class AuthSupport {

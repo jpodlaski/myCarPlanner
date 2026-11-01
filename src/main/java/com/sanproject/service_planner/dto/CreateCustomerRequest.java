@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-// Management-created client account; self-signup uses RegisterRequest instead.
+/** Client account created by management; self-signup uses RegisterRequest. */
 public class CreateCustomerRequest {
 
     @NotBlank(message = "First name is required")

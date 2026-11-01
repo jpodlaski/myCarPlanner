@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { api } from "../services/api";
+import TextField from "./TextField";
 
-// Shared self-service password change for client, worker, and admin dashboards.
-export default function ChangePasswordForm({ embedded = false }) {
+/** Self-service password change shared by the client, worker and admin dashboards. */
+export default function ChangePasswordForm() {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -52,70 +53,62 @@ export default function ChangePasswordForm({ embedded = false }) {
         }
     };
 
-    const form = (
-        <>
-            <p>Enter your current password and choose a new one (at least 8 characters).</p>
-            <form
-                className="auth-form"
-                style={{ maxWidth: "100%", margin: "1rem 0 0" }}
-                onSubmit={handleSubmit}
-            >
-                <input
-                    type="password"
-                    placeholder="Current password"
-                    value={currentPassword}
-                    onChange={(e) => {
-                        clearFeedback();
-                        setCurrentPassword(e.target.value);
-                    }}
-                    autoComplete="current-password"
-                    required
-                />
-                <input
-                    type="password"
-                    placeholder="New password"
-                    value={newPassword}
-                    onChange={(e) => {
-                        clearFeedback();
-                        setNewPassword(e.target.value);
-                    }}
-                    autoComplete="new-password"
-                    minLength={8}
-                    required
-                />
-                <input
-                    type="password"
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => {
-                        clearFeedback();
-                        setConfirmPassword(e.target.value);
-                    }}
-                    autoComplete="new-password"
-                    minLength={8}
-                    required
-                    aria-invalid={passwordsMismatch}
-                />
-                {passwordsMismatch && (
-                    <p className="form-error">Passwords do not match.</p>
-                )}
-                <button type="submit" disabled={!canSubmit}>
+    return (
+        <form className="form-stack change-password-form" onSubmit={handleSubmit}>
+            <p className="card-text">
+                Enter your current password and choose a new one (at least 8 characters).
+            </p>
+            <TextField
+                label="Current password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => {
+                    clearFeedback();
+                    setCurrentPassword(e.target.value);
+                }}
+                autoComplete="current-password"
+                required
+            />
+            <TextField
+                label="New password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => {
+                    clearFeedback();
+                    setNewPassword(e.target.value);
+                }}
+                autoComplete="new-password"
+                minLength={8}
+                required
+            />
+            <TextField
+                label="Confirm new password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => {
+                    clearFeedback();
+                    setConfirmPassword(e.target.value);
+                }}
+                autoComplete="new-password"
+                minLength={8}
+                required
+                error={passwordsMismatch ? "Passwords do not match." : undefined}
+            />
+            {error && (
+                <p className="message message-error" role="alert">
+                    {error}
+                </p>
+            )}
+            {success && (
+                <p className="message message-success" role="status">
+                    {success}
+                </p>
+            )}
+            <div className="button-row">
+                <button type="submit" className="button button-primary" disabled={!canSubmit}>
                     {loading ? "Updating…" : "Update password"}
                 </button>
-                {error && <p className="form-error">{error}</p>}
-                {success && <p className="form-success">{success}</p>}
-            </form>
-        </>
-    );
-
-    if (embedded) {
-        return form;
-    }
-
-    return (
-        <section className="section-block">
-            <h2>Change password</h2>
-            {form}
-        </section>
+            </div>
+        </form>
     );
 }

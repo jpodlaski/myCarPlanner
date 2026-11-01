@@ -1,26 +1,33 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ChangePasswordForm from "../../components/ChangePasswordForm";
+import AppShell from "../../components/AppShell";
+import DetailList from "../../components/DetailList";
+import ExpandableRow from "../../components/ExpandableRow";
+import Pagination from "../../components/Pagination";
+import PasswordCard from "../../components/PasswordCard";
+import StatusBadge from "../../components/StatusBadge";
+import TextField from "../../components/TextField";
 import { ASSIGNABLE_ROLES, roleLabel } from "../../constants/roles";
+import { useFocusOnChange } from "../../hooks/useFocusOnChange";
 import { api } from "../../services/api";
 import { clearSession, getSession } from "../../services/auth";
 import { formatCustomerDateTime } from "../../utils/dateTime";
-import "../../components/DashboardLayout.css";
-import "../client/ClientDashboard.css";
+import { formatEuro } from "../../utils/format";
 import "./AdminDashboard.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
 
 const SECTIONS = {
     workers: "Workers",
     bookings: "Booking history",
-    account: "Account management",
+    account: "Account",
 };
 
-function formatBookingStatus(status) {
-    if (!status) return "";
-    return String(status).replaceAll("_", " ");
-}
+const BOOKINGS_PAGE_SIZE = 20;
+
+const LEDES = {
+    workers: "Create staff accounts, change roles and remove access.",
+    bookings: "Every booking across the workshop, newest first.",
+    account: "Sign-in and account settings.",
+};
 
 function formatCancelledBy(value) {
     if (!value) return null;
@@ -33,32 +40,6 @@ function formatCancelledBy(value) {
     return labels[value] ?? value;
 }
 
-function bookingMatchesQuery(booking, query) {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    const cancelledBy = formatCancelledBy(booking.cancelledBy);
-    const haystack = [
-        booking.id,
-        booking.status,
-        formatBookingStatus(booking.status),
-        booking.customerName,
-        booking.customerEmail,
-        booking.customerDescription,
-        booking.modelLine,
-        booking.carModel,
-        booking.vin,
-        booking.assignedWorkerName,
-        booking.assignedWorkerRole,
-        cancelledBy,
-        booking.cancellationReason,
-        ...(booking.serviceTypes ?? []),
-    ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-    return haystack.includes(q);
-}
-
 /**
  * Management dashboard: create/update/delete workers and view full booking history.
  * UI is gated by MANAGEMENT_ROLES; API still checks AuthSupport.requireCanManageWorkers().
@@ -66,15 +47,17 @@ function bookingMatchesQuery(booking, query) {
 export default function AdminDashboard() {
     const navigate = useNavigate();
     const session = getSession();
-    const menuRef = useRef(null);
 
     const [section, setSection] = useState("workers");
-    const [menuOpen, setMenuOpen] = useState(false);
+    const headingRef = useFocusOnChange(section);
     const [showAddWorkerForm, setShowAddWorkerForm] = useState(false);
     const [showPasswordForm, setShowPasswordForm] = useState(false);
     const [expandedWorkerId, setExpandedWorkerId] = useState(null);
     const [expandedBookingId, setExpandedBookingId] = useState(null);
     const [archiveQuery, setArchiveQuery] = useState("");
+    const [bookingQuery, setBookingQuery] = useState("");
+    const [bookingPage, setBookingPage] = useState(0);
+    const [bookingTotals, setBookingTotals] = useState({ totalItems: 0, totalPages: 0 });
 
     const [workers, setWorkers] = useState([]);
     const [bookings, setBookings] = useState([]);
@@ -116,46 +99,36 @@ export default function AdminDashboard() {
         setBookingsLoading(true);
         setBookingsError("");
         try {
-            const res = await api.get("/admins/bookings");
-            setBookings(
-                [...res.data].sort((a, b) => Number(b.id) - Number(a.id))
-            );
+            const res = await api.get("/admins/bookings", {
+                params: { page: bookingPage, size: BOOKINGS_PAGE_SIZE, q: bookingQuery },
+            });
+            setBookings(res.data.items);
+            setBookingTotals({ totalItems: res.data.totalItems, totalPages: res.data.totalPages });
         } catch {
             setBookingsError("Could not load booking history.");
         } finally {
             setBookingsLoading(false);
         }
-    }, [sessionToken]);
+    }, [sessionToken, bookingPage, bookingQuery]);
 
     useEffect(() => {
         loadWorkers();
-        loadBookings();
-    }, [loadWorkers, loadBookings]);
+    }, [loadWorkers]);
 
     useEffect(() => {
-        if (!menuOpen) return undefined;
+        loadBookings();
+    }, [loadBookings]);
 
-        const onPointerDown = (event) => {
-            if (menuRef.current && !menuRef.current.contains(event.target)) {
-                setMenuOpen(false);
-            }
-        };
-        const onKeyDown = (event) => {
-            if (event.key === "Escape") setMenuOpen(false);
-        };
-
-        document.addEventListener("pointerdown", onPointerDown);
-        document.addEventListener("keydown", onKeyDown);
-        return () => {
-            document.removeEventListener("pointerdown", onPointerDown);
-            document.removeEventListener("keydown", onKeyDown);
-        };
-    }, [menuOpen]);
-
-    const filteredBookings = useMemo(
-        () => bookings.filter((booking) => bookingMatchesQuery(booking, archiveQuery)),
-        [bookings, archiveQuery]
-    );
+    // Wait for a pause in typing so each keystroke doesn't trigger a request.
+    useEffect(() => {
+        const next = archiveQuery.trim();
+        if (next === bookingQuery) return undefined;
+        const id = window.setTimeout(() => {
+            setBookingQuery(next);
+            setBookingPage(0);
+        }, 300);
+        return () => window.clearTimeout(id);
+    }, [archiveQuery, bookingQuery]);
 
     const logout = () => {
         clearSession();
@@ -164,7 +137,6 @@ export default function AdminDashboard() {
 
     const selectSection = (next) => {
         setSection(next);
-        setMenuOpen(false);
         setExpandedWorkerId(null);
         setExpandedBookingId(null);
         if (next !== "bookings") setArchiveQuery("");
@@ -244,173 +216,76 @@ export default function AdminDashboard() {
         }
     };
 
-    const renderBookingDetails = (booking) => (
-        <div className="booking-detail-rows">
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Customer</span>
-                    <p>{booking.customerName ?? "—"}</p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Email</span>
-                    <p>{booking.customerEmail ?? "—"}</p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Issue</span>
-                    <p>{booking.customerDescription ?? "—"}</p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Vehicle</span>
-                    <p>{booking.modelLine ?? booking.carModel ?? "—"}</p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">VIN</span>
-                    <p>{booking.vin ?? "—"}</p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Services</span>
-                    <p>
-                        {booking.serviceTypes?.length > 0
-                            ? booking.serviceTypes.join(", ")
-                            : "—"}
-                    </p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Preferred drop-off</span>
-                    <p>
-                        {booking.estimatedDropOffTime
-                            ? formatCustomerDateTime(booking.estimatedDropOffTime)
-                            : "—"}
-                    </p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Appointment</span>
-                    <p>
-                        {booking.scheduledDateTime
-                            ? formatCustomerDateTime(booking.scheduledDateTime)
-                            : "—"}
-                    </p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Assigned worker</span>
-                    <p>
-                        {booking.assignedWorkerName
-                            ? `${booking.assignedWorkerName}${
-                                booking.assignedWorkerRole
-                                    ? ` (${roleLabel(booking.assignedWorkerRole)})`
-                                    : ""
-                            }`
-                            : "—"}
-                    </p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Availability notes</span>
-                    <p>{booking.availabilityNotes?.trim() || "—"}</p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Estimated cost</span>
-                    <p>
-                        {booking.estimatedCost != null
-                            ? `${booking.estimatedCost} EUR`
-                            : "—"}
-                    </p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Final cost</span>
-                    <p>
-                        {booking.finalCost != null
-                            ? `${booking.finalCost} EUR`
-                            : "—"}
-                    </p>
-                </div>
-            </div>
-            {(booking.cancelledBy || booking.cancellationReason) && (
-                <div className="booking-detail-row">
-                    <div className="booking-detail-item">
-                        <span className="booking-detail-label">Cancelled by</span>
-                        <p>{formatCancelledBy(booking.cancelledBy) || "—"}</p>
-                    </div>
-                    <div className="booking-detail-item">
-                        <span className="booking-detail-label">Cancellation reason</span>
-                        <p>{booking.cancellationReason?.trim() || "—"}</p>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+    const bookingDetailItems = (booking) => [
+        { label: "Customer", value: booking.customerName },
+        { label: "Email", value: booking.customerEmail },
+        { label: "Issue", value: booking.customerDescription },
+        { label: "Vehicle", value: booking.modelLine ?? booking.carModel },
+        { label: "VIN", value: booking.vin },
+        {
+            label: "Services",
+            value: booking.serviceTypes?.length > 0 ? booking.serviceTypes.join(", ") : null,
+        },
+        {
+            label: "Preferred drop-off",
+            value: booking.estimatedDropOffTime
+                ? formatCustomerDateTime(booking.estimatedDropOffTime)
+                : null,
+        },
+        {
+            label: "Appointment",
+            value: booking.scheduledDateTime
+                ? formatCustomerDateTime(booking.scheduledDateTime)
+                : null,
+        },
+        {
+            label: "Assigned worker",
+            value: booking.assignedWorkerName
+                ? `${booking.assignedWorkerName}${
+                    booking.assignedWorkerRole ? ` (${roleLabel(booking.assignedWorkerRole)})` : ""
+                }`
+                : null,
+        },
+        { label: "Availability notes", value: booking.availabilityNotes?.trim() || null },
+        { label: "Estimated cost", value: formatEuro(booking.estimatedCost) },
+        { label: "Final cost", value: formatEuro(booking.finalCost) },
+        {
+            label: "Cancelled by",
+            value: formatCancelledBy(booking.cancelledBy),
+            hidden: !(booking.cancelledBy || booking.cancellationReason),
+        },
+        {
+            label: "Cancellation reason",
+            value: booking.cancellationReason?.trim() || null,
+            hidden: !(booking.cancelledBy || booking.cancellationReason),
+        },
+    ];
 
     return (
-        <div className="client-dashboard-shell admin-dashboard-shell">
-            <div className="dashboard client-dashboard admin-dashboard">
-                <div className="dashboard-header">
-                    <div>
-                        <Logo className="logo" />
-                        <p className="dashboard-user">
-                            Signed in as {session?.name}
-                        </p>
-                    </div>
+        <AppShell
+            pageTitle={SECTIONS[section]}
+            title="Management"
+            homeTo="/admin"
+            userName={session?.name}
+            onSignOut={logout}
+            sections={SECTIONS}
+            activeSection={section}
+            onSelectSection={selectSection}
+        >
+            <header className="page-header">
+                <h1 ref={headingRef} tabIndex={-1} className="page-title">
+                    {SECTIONS[section]}
+                </h1>
+                <p className="page-lede">{LEDES[section]}</p>
+            </header>
 
-                    <div className="dashboard-header-actions">
-                        <ThemeToggle />
-                        <div className="menu" ref={menuRef}>
+            {section === "workers" && (
+                <div className="stack">
+                    {!showAddWorkerForm ? (
+                        <div className="button-row">
                             <button
                                 type="button"
-                                className="menu-btn"
-                                aria-label="Open menu"
-                                aria-expanded={menuOpen}
-                                aria-haspopup="menu"
-                                onClick={() => setMenuOpen((open) => !open)}
-                            >
-                                <span />
-                                <span />
-                                <span />
-                            </button>
-
-                            {menuOpen && (
-                                <div className="menu-panel" role="menu">
-                                    {Object.entries(SECTIONS).map(([id, label]) => (
-                                        <button
-                                            key={id}
-                                            type="button"
-                                            role="menuitem"
-                                            className={
-                                                section === id
-                                                    ? "menu-item menu-item-active"
-                                                    : "menu-item"
-                                            }
-                                            onClick={() => selectSection(id)}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <button type="button" className="logout-btn" onClick={logout}>
-                            Sign out
-                        </button>
-                    </div>
-                </div>
-
-                {section === "workers" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>Workers</h2>
-
-                        {!showAddWorkerForm ? (
-                            <button
-                                type="button"
-                                className="primary-btn section-action-btn"
+                                className="button button-secondary"
                                 onClick={() => {
                                     setFormError("");
                                     setFormSuccess("");
@@ -419,60 +294,75 @@ export default function AdminDashboard() {
                             >
                                 Add worker
                             </button>
-                        ) : (
-                            <div className="admin-add-worker-panel">
-                                <div className="admin-add-worker-toolbar">
-                                    <h3>Add worker</h3>
-                                    <button
-                                        type="button"
-                                        className="logout-btn"
-                                        onClick={() => {
-                                            setShowAddWorkerForm(false);
-                                            setFormError("");
-                                            setFormSuccess("");
-                                        }}
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                                <form className="auth-form admin-worker-form" onSubmit={createWorker}>
-                                    <input
-                                        placeholder="First name"
+                        </div>
+                    ) : (
+                        <section className="card" aria-labelledby="add-worker-title">
+                            <div className="card-header">
+                                <h2 id="add-worker-title" className="card-title">
+                                    Add worker
+                                </h2>
+                                <button
+                                    type="button"
+                                    className="button button-neutral button-small"
+                                    onClick={() => {
+                                        setShowAddWorkerForm(false);
+                                        setFormError("");
+                                        setFormSuccess("");
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                            <form className="form-stack" onSubmit={createWorker}>
+                                <div className="form-grid">
+                                    <TextField
+                                        label="First name"
+                                        autoComplete="off"
                                         value={firstName}
                                         onChange={(e) => setFirstName(e.target.value)}
                                         required
                                     />
-                                    <input
-                                        placeholder="Last name"
+                                    <TextField
+                                        label="Last name"
+                                        autoComplete="off"
                                         value={lastName}
                                         onChange={(e) => setLastName(e.target.value)}
                                         required
                                     />
-                                    <input
+                                    <TextField
+                                        label="Email"
                                         type="email"
-                                        placeholder="Email"
+                                        autoComplete="off"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         required
                                     />
-                                    <input
-                                        placeholder="Login"
+                                    <TextField
+                                        label="Login"
+                                        autoComplete="off"
+                                        autoCapitalize="none"
+                                        spellCheck={false}
                                         value={login}
                                         onChange={(e) => setLogin(e.target.value)}
                                         required
                                     />
-                                    <input
+                                    <TextField
+                                        label="Initial password"
                                         type="password"
-                                        placeholder="Password (min. 8 characters)"
+                                        autoComplete="new-password"
+                                        hint="At least 8 characters."
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
                                         minLength={8}
                                     />
+                                </div>
+                                <label className="field worker-role-field">
+                                    <span className="field-label">Role</span>
                                     <select
+                                        className="select"
                                         value={role}
                                         onChange={(e) => setRole(e.target.value)}
-                                        required
                                     >
                                         {ASSIGNABLE_ROLES.map((option) => (
                                             <option key={option} value={option}>
@@ -480,213 +370,188 @@ export default function AdminDashboard() {
                                             </option>
                                         ))}
                                     </select>
-                                    <button type="submit" className="primary-btn" disabled={submitting}>
+                                </label>
+                                {formError && (
+                                    <p className="message message-error" role="alert">
+                                        {formError}
+                                    </p>
+                                )}
+                                <div className="button-row">
+                                    <button type="submit" className="button button-primary" disabled={submitting}>
                                         {submitting ? "Creating…" : "Create worker"}
                                     </button>
-                                    {formError && <p className="form-error">{formError}</p>}
-                                    {formSuccess && <p className="form-success">{formSuccess}</p>}
-                                </form>
-                            </div>
-                        )}
+                                </div>
+                            </form>
+                        </section>
+                    )}
 
-                        {loading && <p>Loading…</p>}
-                        {error && <p className="form-error">{error}</p>}
+                    <div role="status">
+                        {formSuccess && <p className="message message-success">{formSuccess}</p>}
+                    </div>
 
-                        <div className="vehicle-list">
+                    {loading && (
+                        <p className="status-text" role="status">
+                            Loading…
+                        </p>
+                    )}
+                    {error && (
+                        <p className="message message-error" role="alert">
+                            {error}
+                        </p>
+                    )}
+
+                    {!loading && !error && workers.length === 0 && (
+                        <p className="empty-state">No workers yet.</p>
+                    )}
+
+                    {workers.length > 0 && (
+                        <ul className="row-list">
                             {workers.map((worker) => {
                                 const expanded = expandedWorkerId === worker.id;
+                                const roleSelectId = `worker-role-${worker.id}`;
                                 return (
-                                    <div key={worker.id} className="vehicle-row">
-                                        <div className="vehicle-row-top">
+                                    <ExpandableRow
+                                        key={worker.id}
+                                        eyebrow={roleLabel(worker.role)}
+                                        title={`${worker.firstName} ${worker.lastName}`}
+                                        meta={worker.login}
+                                        expanded={expanded}
+                                        onToggle={() =>
+                                            setExpandedWorkerId((current) =>
+                                                current === worker.id ? null : worker.id
+                                            )
+                                        }
+                                    >
+                                        <DetailList
+                                            items={[
+                                                { label: "Role", value: roleLabel(worker.role) },
+                                                { label: "Login", value: worker.login },
+                                                { label: "Email", value: worker.email },
+                                            ]}
+                                        />
+                                        <div className="row-section worker-actions">
+                                            <div className="field">
+                                                <label className="field-label" htmlFor={roleSelectId}>
+                                                    Change role
+                                                </label>
+                                                <select
+                                                    id={roleSelectId}
+                                                    className="select"
+                                                    value={worker.role ?? "MECHANIC"}
+                                                    disabled={updatingRoleId === worker.id}
+                                                    onChange={(e) =>
+                                                        changeWorkerRole(worker, e.target.value)
+                                                    }
+                                                >
+                                                    {ASSIGNABLE_ROLES.map((option) => (
+                                                        <option key={option} value={option}>
+                                                            {roleLabel(option)}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                             <button
                                                 type="button"
-                                                className="vehicle-row-toggle"
-                                                aria-expanded={expanded}
-                                                onClick={() =>
-                                                    setExpandedWorkerId((current) =>
-                                                        current === worker.id ? null : worker.id
-                                                    )
-                                                }
+                                                className="button button-danger"
+                                                disabled={deletingId === worker.id}
+                                                onClick={() => deleteWorker(worker)}
                                             >
-                                                <div className="vehicle-row-heading">
-                                                    <p className="vehicle-row-title">
-                                                        {worker.firstName} {worker.lastName}
-                                                    </p>
-                                                    <span className="booking-row-chevron" aria-hidden="true">
-                                                        {expanded ? "▾" : "▸"}
-                                                    </span>
-                                                </div>
-                                                <p className="vehicle-row-meta">
-                                                    {roleLabel(worker.role)} · {worker.login}
-                                                </p>
+                                                {deletingId === worker.id ? "Deleting…" : "Delete worker"}
                                             </button>
                                         </div>
-                                        {expanded && (
-                                            <div className="vehicle-row-details">
-                                                <div className="booking-detail-rows">
-                                                    <div className="booking-detail-row">
-                                                        <div className="booking-detail-item">
-                                                            <span className="booking-detail-label">Role</span>
-                                                            <p>{roleLabel(worker.role)}</p>
-                                                        </div>
-                                                        <div className="booking-detail-item">
-                                                            <span className="booking-detail-label">Login</span>
-                                                            <p>{worker.login}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="booking-detail-row">
-                                                        <div className="booking-detail-item">
-                                                            <span className="booking-detail-label">Email</span>
-                                                            <p>{worker.email}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="worker-row-actions">
-                                                    <select
-                                                        value={worker.role ?? "MECHANIC"}
-                                                        disabled={updatingRoleId === worker.id}
-                                                        onChange={(e) =>
-                                                            changeWorkerRole(worker, e.target.value)
-                                                        }
-                                                    >
-                                                        {ASSIGNABLE_ROLES.map((option) => (
-                                                            <option key={option} value={option}>
-                                                                {roleLabel(option)}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                    <button
-                                                        type="button"
-                                                        className="danger-btn"
-                                                        disabled={deletingId === worker.id}
-                                                        onClick={() => deleteWorker(worker)}
-                                                    >
-                                                        {deletingId === worker.id ? "Deleting…" : "Delete"}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                    </ExpandableRow>
                                 );
                             })}
-                        </div>
-                    </section>
-                )}
+                        </ul>
+                    )}
+                </div>
+            )}
 
-                {section === "bookings" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>Booking history</h2>
-                        {bookingsLoading && <p>Loading…</p>}
-                        {bookingsError && <p className="form-error">{bookingsError}</p>}
-                        {!bookingsLoading && bookings.length > 0 && (
-                            <label className="archive-find">
-                                <span className="archive-find-label">Find</span>
+            {section === "bookings" && (
+                <div className="stack">
+                    {bookingsLoading && (
+                        <p className="status-text" role="status">
+                            Loading…
+                        </p>
+                    )}
+                    {bookingsError && (
+                        <p className="message message-error" role="alert">
+                            {bookingsError}
+                        </p>
+                    )}
+                    {(bookingTotals.totalItems > 0 || bookingQuery) && (
+                        <div className="toolbar">
+                            <label className="field">
+                                <span className="field-label">Search bookings</span>
                                 <input
+                                    className="input"
                                     type="search"
-                                    placeholder="Search by customer, vehicle, VIN, status…"
+                                    placeholder="Booking number, customer, vehicle, VIN, status"
                                     value={archiveQuery}
                                     onChange={(e) => setArchiveQuery(e.target.value)}
                                 />
                             </label>
-                        )}
-                        <div className="booking-list">
-                            {filteredBookings.map((booking) => {
-                                const expanded = expandedBookingId === booking.id;
-                                const statusClass =
-                                    `booking-status booking-status-${String(booking.status || "")
-                                        .toLowerCase()
-                                        .replaceAll("_", "-")}`;
-
-                                return (
-                                    <div key={booking.id} className="booking-row">
-                                        <div className="booking-row-top">
-                                            <button
-                                                type="button"
-                                                className="booking-row-toggle"
-                                                aria-expanded={expanded}
-                                                onClick={() =>
-                                                    setExpandedBookingId((current) =>
-                                                        current === booking.id ? null : booking.id
-                                                    )
-                                                }
-                                            >
-                                                <div className="booking-row-heading">
-                                                    <span className="booking-row-id">
-                                                        Booking #{booking.id}
-                                                    </span>
-                                                    <span className={statusClass}>
-                                                        {formatBookingStatus(booking.status)}
-                                                    </span>
-                                                    <span className="booking-row-chevron" aria-hidden="true">
-                                                        {expanded ? "▾" : "▸"}
-                                                    </span>
-                                                </div>
-                                                <p className="booking-row-title">
-                                                    {booking.modelLine ?? booking.carModel}
-                                                    {booking.vin ? ` · VIN ${booking.vin}` : ""}
-                                                </p>
-                                                <p className="booking-row-meta">
-                                                    {booking.customerName}
-                                                    {booking.scheduledDateTime
-                                                        ? ` · Appointment ${formatCustomerDateTime(booking.scheduledDateTime)}`
-                                                        : ""}
-                                                    {booking.assignedWorkerName
-                                                        ? ` · ${booking.assignedWorkerName}`
-                                                        : ""}
-                                                    {booking.status === "CANCELLED"
-                                                        && formatCancelledBy(booking.cancelledBy)
-                                                        ? ` · Cancelled by ${formatCancelledBy(booking.cancelledBy)}`
-                                                        : ""}
-                                                    {booking.status === "COMPLETED"
-                                                        && booking.finalCost != null
-                                                        ? ` · ${booking.finalCost} EUR`
-                                                        : ""}
-                                                </p>
-                                            </button>
-                                        </div>
-
-                                        {expanded && (
-                                            <div className="booking-row-details">
-                                                {renderBookingDetails(booking)}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
                         </div>
-                    </section>
-                )}
+                    )}
+                    {!bookingsLoading && !bookingsError && bookings.length === 0 && !bookingQuery && (
+                        <p className="empty-state">No bookings yet.</p>
+                    )}
+                    {!bookingsLoading && !bookingsError && bookings.length === 0 && bookingQuery && (
+                        <p className="empty-state" role="status">
+                            No bookings match “{bookingQuery}”.
+                        </p>
+                    )}
+                    {bookings.length > 0 && (
+                        <ul className="row-list">
+                            {bookings.map((booking) => (
+                                <ExpandableRow
+                                    key={booking.id}
+                                    eyebrow={`Booking #${booking.id}`}
+                                    title={booking.modelLine ?? booking.carModel}
+                                    meta={[
+                                        booking.vin && `VIN ${booking.vin}`,
+                                        booking.customerName,
+                                        booking.scheduledDateTime
+                                            && `Appointment ${formatCustomerDateTime(booking.scheduledDateTime)}`,
+                                        booking.assignedWorkerName,
+                                        booking.status === "CANCELLED"
+                                            && formatCancelledBy(booking.cancelledBy)
+                                            && `Cancelled by ${formatCancelledBy(booking.cancelledBy)}`,
+                                        booking.status === "COMPLETED"
+                                            && booking.finalCost != null
+                                            && `${booking.finalCost} EUR`,
+                                    ].filter(Boolean).join(" · ")}
+                                    badge={<StatusBadge status={booking.status} />}
+                                    expanded={expandedBookingId === booking.id}
+                                    onToggle={() =>
+                                        setExpandedBookingId((current) =>
+                                            current === booking.id ? null : booking.id
+                                        )
+                                    }
+                                >
+                                    <DetailList items={bookingDetailItems(booking)} />
+                                </ExpandableRow>
+                            ))}
+                        </ul>
+                    )}
+                    <Pagination
+                        page={bookingPage}
+                        totalPages={bookingTotals.totalPages}
+                        totalItems={bookingTotals.totalItems}
+                        itemLabel={bookingTotals.totalItems === 1 ? "booking" : "bookings"}
+                        label="Booking history pages"
+                        disabled={bookingsLoading}
+                        onChange={(next) => {
+                            setExpandedBookingId(null);
+                            setBookingPage(next);
+                        }}
+                    />
+                </div>
+            )}
 
-                {section === "account" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>Account management</h2>
-
-                        {!showPasswordForm ? (
-                            <button
-                                type="button"
-                                className="primary-btn section-action-btn"
-                                onClick={() => setShowPasswordForm(true)}
-                            >
-                                Change password
-                            </button>
-                        ) : (
-                            <div className="account-password-panel">
-                                <div className="account-password-toolbar">
-                                    <h3>Change password</h3>
-                                    <button
-                                        type="button"
-                                        className="logout-btn"
-                                        onClick={() => setShowPasswordForm(false)}
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                                <ChangePasswordForm embedded />
-                            </div>
-                        )}
-                    </section>
-                )}
-            </div>
-        </div>
+            {section === "account" && (
+                <PasswordCard open={showPasswordForm} onOpenChange={setShowPasswordForm} />
+            )}
+        </AppShell>
     );
 }

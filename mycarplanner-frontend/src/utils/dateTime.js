@@ -1,4 +1,4 @@
-// Matches API datetimes without timezone suffix to avoid browser timezone shifts.
+// API datetimes have no zone; parse them by hand so the browser doesn't shift them.
 const ISO_LOCAL_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/;
 
 export function formatCustomerDateTime(value) {
@@ -10,7 +10,6 @@ export function formatCustomerDateTime(value) {
     }
 
     const [, year, month, day, hour, minute] = match;
-    // month is 0-indexed in JS Date
     const weekday = new Date(Number(year), Number(month) - 1, Number(day))
         .toLocaleDateString("en-GB", { weekday: "long" });
 

@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
-// Worker marks work done; actor comes from the JWT.
+/** Technician marks work done; the actor comes from the JWT. */
 public class CompleteBookingRequest {
 
     @NotNull(message = "Final cost is required")

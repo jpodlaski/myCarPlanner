@@ -5,9 +5,8 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * Kick off delivery only after the DB transaction commits.
- * That way we never send for a change that later rolls back, and a crash mid-request
- * still leaves a PENDING outbox row for the scheduled poller to retry.
+ * Starts delivery only after the transaction commits, so a rolled-back change never sends mail
+ * and a crash mid-request still leaves a PENDING row for the poller.
  */
 @Component
 public class EmailOutboxDispatcher {

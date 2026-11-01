@@ -15,10 +15,8 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * API security is fully stateless: no HTTP session cookies.
- * After login the client sends a JWT on every request; this filter chain decides which
- * routes are public vs authenticated. Fine-grained role checks happen later in AuthSupport
- * (e.g. only clients create bookings, only workshop staff claim them).
+ * Stateless JWT security. This chain only separates public from authenticated routes;
+ * role checks (e.g. only clients create bookings) happen in AuthSupport.
  */
 @Configuration
 @EnableWebSecurity
@@ -36,14 +34,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // CSRF protection targets cookie-based browser sessions; JWT APIs typically disable it.
+                // No cookie sessions to protect: every request authenticates with a Bearer token.
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
-                // STATELESS = Spring never creates an HttpSession; identity lives only in the JWT.
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public: register/login + catalog (needed before the client is signed in).
+                        // Public: account flows and the catalog, needed before anyone is signed in.
                         .requestMatchers(
                                 "/auth/login",
                                 "/auth/employee-login",
@@ -63,7 +60,6 @@ public class SecurityConfig {
                 .anonymous(anon -> anon.disable())
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
-                // Run our JWT filter before Spring's username/password filter.
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         rateLimitFilterProvider.ifAvailable(rateLimitFilter ->

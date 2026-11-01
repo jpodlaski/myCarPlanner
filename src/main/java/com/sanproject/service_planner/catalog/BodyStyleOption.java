@@ -2,7 +2,7 @@ package com.sanproject.service_planner.catalog;
 
 import java.util.List;
 
-// Body variant within a model line (e.g. Coupe, Volante).
+/** Body variant within a model line (e.g. Supercar, SUV, Roadster). */
 public class BodyStyleOption {
 
     private String id;

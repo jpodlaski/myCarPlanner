@@ -36,10 +36,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 /**
- * Authentication use-cases: client login (email), employee login (login name), register,
- * change password, forgot/reset password, and email verification.
- * On success we return a JWT — the frontend stores it and sends it as Authorization: Bearer on later calls.
- * Passwords are never stored in plain text; PasswordService uses BCrypt (one-way hash).
+ * Login (clients by email, employees by login name), registration, password change and reset,
+ * email verification and account deletion. Successful login returns a JWT.
  */
 @Service
 public class AuthService {
@@ -255,7 +253,7 @@ public class AuthService {
 
     /**
      * Authenticated client requests deletion; a confirmation link is emailed (same pattern as verify-email).
-     * Open SCHEDULED / IN_PROGRESS bookings must be resolved first.
+     * Open bookings (scheduled, ready for work or in progress) must be resolved first.
      */
     @Transactional
     public MessageResponse requestAccountDeletion() {

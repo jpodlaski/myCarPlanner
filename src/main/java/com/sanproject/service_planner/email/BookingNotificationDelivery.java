@@ -158,7 +158,7 @@ public class BookingNotificationDelivery {
 
     private String resolveCarModelForEmail(ServiceBooking booking) {
         Vehicle vehicle = booking.getVehicle();
-        // Prefer short model line (e.g. "DBX") over full catalog name in emails.
+        // Prefer the short model line (e.g. "Thunder") over the full catalog name.
         if (vehicle != null && vehicle.getModelLine() != null && !vehicle.getModelLine().isBlank()) {
             return vehicle.getModelLine();
         }

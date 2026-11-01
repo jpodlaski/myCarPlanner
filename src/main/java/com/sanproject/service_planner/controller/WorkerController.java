@@ -21,7 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-// Worker reads; assigned bookings for the authenticated workshop staff member.
+/** Worker reads and the signed-in staff member's assigned bookings. */
 @RestController
 @RequestMapping("/workers")
 public class WorkerController {

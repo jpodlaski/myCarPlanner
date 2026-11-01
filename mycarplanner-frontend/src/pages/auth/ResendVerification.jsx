@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { api } from "../../services/api";
-import "../../components/DashboardLayout.css";
-import "./AuthShell.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
+import AuthLayout from "../../components/AuthLayout";
+import TextField from "../../components/TextField";
 
 export default function ResendVerification() {
     const [email, setEmail] = useState("");
@@ -29,36 +26,34 @@ export default function ResendVerification() {
     };
 
     return (
-        <div className="auth-shell">
-            <ThemeToggle className="theme-toggle-auth" />
-            <div className="auth-shell-panel">
-                <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <Logo />
-                </Link>
-                <h1>Resend verification</h1>
-                <p className="auth-shell-lede">
-                    Enter your email if you still need to verify your account.
-                </p>
-
-                <form className="auth-form" onSubmit={submit}>
-                    <input
-                        placeholder="Email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                    <button type="submit" disabled={loading}>
-                        {loading ? "Sending…" : "Resend link"}
-                    </button>
-                    {message && <p className="form-success">{message}</p>}
-                    {error && <p className="form-error">{error}</p>}
-                </form>
-
-                <div className="auth-links">
-                    <Link to="/login">Back to sign in</Link>
-                </div>
-            </div>
-        </div>
+        <AuthLayout
+            title="Resend verification"
+            lede="Enter your email if you still need to verify your account."
+            links={[{ to: "/login", label: "Back to sign in" }]}
+        >
+            <form className="form-stack" onSubmit={submit}>
+                <TextField
+                    label="Email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                />
+                {message && (
+                    <p className="message message-success" role="status">
+                        {message}
+                    </p>
+                )}
+                {error && (
+                    <p className="message message-error" role="alert">
+                        {error}
+                    </p>
+                )}
+                <button type="submit" className="button button-primary button-block" disabled={loading}>
+                    {loading ? "Sending…" : "Resend link"}
+                </button>
+            </form>
+        </AuthLayout>
     );
 }

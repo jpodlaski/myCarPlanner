@@ -1,44 +1,46 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import AppShell from "../../components/AppShell";
 import VehicleConfigurator from "../../components/VehicleConfigurator";
-import { getSession } from "../../services/auth";
-import "../../components/VehicleConfigurator.css";
-import "../../components/DashboardLayout.css";
-import "./ClientDashboard.css";
-import "./AddVehicle.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
+import { clearSession, getSession } from "../../services/auth";
+import "./RequestService.css";
 
-// Wrapper around VehicleConfigurator; returns to client dashboard after success.
+/** Hosts VehicleConfigurator and returns to the client dashboard after saving. */
 export default function AddVehicle() {
     const navigate = useNavigate();
     const session = getSession();
 
-    return (
-        <div className="client-dashboard-shell">
-            <div className="dashboard client-dashboard add-vehicle-page">
-                <div className="dashboard-header">
-                    <div>
-                        <Logo className="logo" />
-                        <h1>Add a vehicle</h1>
-                    </div>
-                    <div className="dashboard-header-actions">
-                        <ThemeToggle />
-                        <button
-                            type="button"
-                            className="logout-btn"
-                            onClick={() => navigate("/client")}
-                        >
-                            Back to dashboard
-                        </button>
-                    </div>
-                </div>
+    const logout = () => {
+        clearSession();
+        navigate("/");
+    };
 
-                {session?.token ? (
-                    <VehicleConfigurator onVehicleAdded={() => navigate("/client")} />
-                ) : (
-                    <p className="form-error">You must be signed in to add a vehicle.</p>
-                )}
-            </div>
-        </div>
+    return (
+        <AppShell
+            pageTitle="Add a vehicle"
+            title="Garage"
+            homeTo="/client"
+            userName={session?.name}
+            onSignOut={logout}
+            localAction={
+                <Link to="/client" className="link-chevron link-chevron-back local-nav-back">
+                    Back to Garage
+                </Link>
+            }
+        >
+            <header className="page-header">
+                <h1 className="page-title">Add a vehicle</h1>
+                <p className="page-lede">
+                    Choose your Hussarya step by step, then enter its VIN.
+                </p>
+            </header>
+
+            {session?.token ? (
+                <VehicleConfigurator onVehicleAdded={() => navigate("/client")} />
+            ) : (
+                <p className="message message-error" role="alert">
+                    You must be signed in to add a vehicle.
+                </p>
+            )}
+        </AppShell>
     );
 }

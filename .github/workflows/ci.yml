@@ -1,6 +1,6 @@
-# Continuous Integration: runs on every push/PR.
-# Backend job spins up Postgres as a GitHub Actions service, then Maven test + package.
-# Frontend job runs ESLint + production Vite build (catches broken imports early).
+# Runs on every push and pull request.
+# Backend: Maven test and package against Postgres and Redis service containers.
+# Frontend: ESLint and a production Vite build.
 name: CI
 
 on:

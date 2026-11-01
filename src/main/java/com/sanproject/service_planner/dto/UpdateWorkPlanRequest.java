@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotEmpty;
 import java.math.BigDecimal;
 import java.util.List;
 
-/** Assigned worker updates planned work after diagnosis (e.g. check → brake replace). */
+/** Assigned technician revises planned work after diagnosis (e.g. inspection → brake replacement). */
 public class UpdateWorkPlanRequest {
 
     @DecimalMin(value = "0.01", message = "Estimated cost must be positive")

@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-// Shared readable datetime format for emails: "2026-06-15, Monday, 10:30".
+/** Readable datetime for emails and invoices, e.g. "2026-06-15, Monday, 10:30". */
 public final class CustomerDateTimeFormatter {
 
     private static final DateTimeFormatter FORMATTER =

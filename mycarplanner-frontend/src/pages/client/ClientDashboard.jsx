@@ -1,31 +1,35 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ChangePasswordForm from "../../components/ChangePasswordForm";
+import AppShell from "../../components/AppShell";
+import DetailList from "../../components/DetailList";
+import ExpandableRow from "../../components/ExpandableRow";
+import PasswordCard from "../../components/PasswordCard";
+import StatusBadge from "../../components/StatusBadge";
+import { useFocusOnChange } from "../../hooks/useFocusOnChange";
 import { api } from "../../services/api";
 import { clearSession, getSession } from "../../services/auth";
 import { formatCustomerDateTime } from "../../utils/dateTime";
-import "../../components/DashboardLayout.css";
-import "./ClientDashboard.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
+import { formatEuro, formatStatus } from "../../utils/format";
 
 const SECTIONS = {
     vehicles: "Vehicles",
     bookings: "Bookings",
     archive: "Archive",
-    account: "Account management",
+    account: "Account",
 };
 
-function formatStatus(status) {
-    if (!status) return "";
-    return String(status).replaceAll("_", " ");
-}
+const LEDES = {
+    vehicles: "The cars on your account. Remove one any time; its service history stays.",
+    bookings: "Open service requests, from scheduled to in progress.",
+    archive: "Completed and cancelled bookings, with invoices.",
+    account: "Sign-in and account settings.",
+};
 
 function isWorkshopCancellation(booking) {
     if (booking?.cancelledBy === "WORKER" || booking?.cancelledBy === "WORKSHOP") {
         return true;
     }
-    // Older rows may only have a reason from workshop reject/cancel.
+    // Rows from before cancelledBy existed only carry a reason; treat those as workshop-initiated.
     return Boolean(booking?.cancellationReason?.trim()) && booking?.cancelledBy !== "CUSTOMER";
 }
 
@@ -47,49 +51,25 @@ function formatVehicleOption(vehicle) {
     ].filter(Boolean).join(" · ");
 }
 
-function VehicleDetails({ vehicle }) {
-    return (
-        <div className="booking-detail-rows">
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Model</span>
-                    <p>{vehicle.modelLine ?? vehicle.model ?? "—"}</p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Production year</span>
-                    <p>{vehicle.productionYear ?? "—"}</p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Body</span>
-                    <p>{vehicle.bodyStyle ?? "—"}</p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">VIN</span>
-                    <p>{vehicle.vin ?? "—"}</p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Engine</span>
-                    <p>
-                        {vehicle.engine
-                            ? `${vehicle.engine}${vehicle.power ? ` (${vehicle.power})` : ""}`
-                            : "—"}
-                    </p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Transmission</span>
-                    <p>
-                        {vehicle.transmission
-                            ? `${vehicle.transmission}${vehicle.drivetrain ? ` · ${vehicle.drivetrain}` : ""}`
-                            : "—"}
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
+function vehicleDetailItems(vehicle) {
+    return [
+        { label: "Model", value: vehicle.modelLine ?? vehicle.model },
+        { label: "Production year", value: vehicle.productionYear },
+        { label: "Body", value: vehicle.bodyStyle },
+        { label: "VIN", value: vehicle.vin },
+        {
+            label: "Engine",
+            value: vehicle.engine
+                ? `${vehicle.engine}${vehicle.power ? ` (${vehicle.power})` : ""}`
+                : null,
+        },
+        {
+            label: "Transmission",
+            value: vehicle.transmission
+                ? `${vehicle.transmission}${vehicle.drivetrain ? ` · ${vehicle.drivetrain}` : ""}`
+                : null,
+        },
+    ];
 }
 
 function getBookingVin(booking, vehicles = []) {
@@ -130,14 +110,13 @@ function clientArchiveMatchesQuery(booking, query, vehicles) {
     return haystack.includes(q);
 }
 
-// Client home: one section at a time via header menu (Vehicles / Bookings / Account).
+/** Client home: the local nav switches between Vehicles, Bookings, Archive and Account. */
 export default function ClientDashboard() {
     const navigate = useNavigate();
     const session = getSession();
-    const menuRef = useRef(null);
 
     const [section, setSection] = useState("vehicles");
-    const [menuOpen, setMenuOpen] = useState(false);
+    const headingRef = useFocusOnChange(section);
     const [showPasswordForm, setShowPasswordForm] = useState(false);
     const [showDeleteAccount, setShowDeleteAccount] = useState(false);
     const [deleteAccountMessage, setDeleteAccountMessage] = useState("");
@@ -187,26 +166,6 @@ export default function ClientDashboard() {
         loadData();
     }, [loadData]);
 
-    useEffect(() => {
-        if (!menuOpen) return undefined;
-
-        const onPointerDown = (event) => {
-            if (menuRef.current && !menuRef.current.contains(event.target)) {
-                setMenuOpen(false);
-            }
-        };
-        const onKeyDown = (event) => {
-            if (event.key === "Escape") setMenuOpen(false);
-        };
-
-        document.addEventListener("pointerdown", onPointerDown);
-        document.addEventListener("keydown", onKeyDown);
-        return () => {
-            document.removeEventListener("pointerdown", onPointerDown);
-            document.removeEventListener("keydown", onKeyDown);
-        };
-    }, [menuOpen]);
-
     const vehicleIdsWithOpenBookings = useMemo(() => {
         const ids = new Set();
         for (const booking of bookings) {
@@ -233,6 +192,8 @@ export default function ClientDashboard() {
         [vehicles, vehicleHistory]
     );
 
+    const hasArchive = bookings.some((b) => isArchiveStatus(b.status));
+
     const archiveBookings = useMemo(
         () => bookings
             .filter((booking) => isArchiveStatus(booking.status))
@@ -255,7 +216,6 @@ export default function ClientDashboard() {
 
     const selectSection = (next) => {
         setSection(next);
-        setMenuOpen(false);
         if (next !== "archive") setArchiveQuery("");
         if (next !== "account") {
             setShowPasswordForm(false);
@@ -364,7 +324,7 @@ export default function ClientDashboard() {
                     const parsed = JSON.parse(text);
                     if (parsed?.message) message = parsed.message;
                 } catch {
-                    // keep default message
+                    // Not JSON: keep the generic message.
                 }
             } else if (err.response?.data?.message) {
                 message = err.response.data.message;
@@ -375,442 +335,297 @@ export default function ClientDashboard() {
         }
     };
 
-    const renderBookingCard = (booking, { archive = false } = {}) => {
+    const renderBookingRow = (booking, { archive = false } = {}) => {
         const vin = getBookingVin(booking, allKnownVehicles);
         const expandedKey = archive ? `archive-${booking.id}` : booking.id;
         const expanded = expandedBookingId === expandedKey;
         const canCancel = isOpenBooking(booking.status);
-        const statusClass = `booking-status booking-status-${String(booking.status || "")
-            .toLowerCase()
-            .replaceAll("_", "-")}`;
-        const showCollapsedBadge = !archive && (
-            booking.status === "IN_PROGRESS" || booking.status === "READY_FOR_WORK"
-        );
-        const rowClass = booking.status === "IN_PROGRESS" && !archive
-            ? "booking-row booking-row-active"
-            : "booking-row";
+        const cancelled = booking.status === "CANCELLED";
 
         return (
-            <div key={booking.id} className={rowClass}>
-                <div className="booking-row-top">
-                    <button
-                        type="button"
-                        className="booking-row-toggle"
-                        aria-expanded={expanded}
-                        onClick={() =>
-                            setExpandedBookingId((current) =>
-                                current === expandedKey ? null : expandedKey
-                            )
-                        }
-                    >
-                        <div className="booking-row-heading">
-                            <p className="booking-row-title">
-                                {booking.carModel}
-                            </p>
-                            {showCollapsedBadge && (
-                                <span className={statusClass}>
-                                    {formatStatus(booking.status)}
-                                </span>
-                            )}
-                            <span className="booking-row-chevron" aria-hidden="true">
-                                {expanded ? "▾" : "▸"}
-                            </span>
-                        </div>
-                        <p className="booking-row-meta">
-                            {vin ? `VIN ${vin}` : "VIN —"}
-                        </p>
-                    </button>
-                </div>
+            <ExpandableRow
+                key={booking.id}
+                eyebrow={`Booking #${booking.id}`}
+                title={booking.carModel}
+                meta={vin ? `VIN ${vin}` : "VIN —"}
+                badge={<StatusBadge status={booking.status} />}
+                highlight={!archive && booking.status === "IN_PROGRESS"}
+                expanded={expanded}
+                onToggle={() =>
+                    setExpandedBookingId((current) =>
+                        current === expandedKey ? null : expandedKey
+                    )
+                }
+            >
+                <DetailList
+                    items={[
+                        { label: "Status", value: formatStatus(booking.status) },
+                        {
+                            label: "Estimated drop-off",
+                            value: booking.estimatedDropOffTime
+                                ? formatCustomerDateTime(booking.estimatedDropOffTime)
+                                : null,
+                        },
+                        {
+                            label: "Appointment",
+                            value: booking.scheduledDateTime
+                                ? formatCustomerDateTime(booking.scheduledDateTime)
+                                : null,
+                        },
+                        { label: "Issue", value: booking.customerDescription || null },
+                        {
+                            label: "Work planned",
+                            value: booking.serviceTypes?.length
+                                ? booking.serviceTypes.join(", ")
+                                : null,
+                        },
+                        { label: "Estimated cost", value: formatEuro(booking.estimatedCost) },
+                        { label: "Final cost", value: formatEuro(booking.finalCost) },
+                        {
+                            label: "Availability notes",
+                            value: booking.availabilityNotes,
+                            hidden: !booking.availabilityNotes,
+                        },
+                        {
+                            label: "Cancelled by",
+                            value: cancellationSourceLabel(booking.cancelledBy)
+                                ?? (isWorkshopCancellation(booking) ? "Workshop" : null),
+                            hidden: !cancelled,
+                        },
+                        {
+                            label: "Cancellation reason",
+                            value: booking.cancellationReason?.trim() || null,
+                            hidden: !cancelled,
+                        },
+                    ]}
+                />
 
-                {expanded && (
-                    <div className="booking-row-details">
-                        <div className="booking-detail-rows">
-                            <div className="booking-detail-row">
-                                <div className="booking-detail-item">
-                                    <span className="booking-detail-label">
-                                        Booking
-                                    </span>
-                                    <p>#{booking.id}</p>
-                                </div>
-                                <div className="booking-detail-item">
-                                    <span className="booking-detail-label">
-                                        Status
-                                    </span>
-                                    <p>
-                                        <span className={statusClass}>
-                                            {formatStatus(booking.status)}
-                                        </span>
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="booking-detail-row">
-                                <div className="booking-detail-item">
-                                    <span className="booking-detail-label">
-                                        Estimated drop-off
-                                    </span>
-                                    <p>
-                                        {booking.estimatedDropOffTime
-                                            ? formatCustomerDateTime(booking.estimatedDropOffTime)
-                                            : "—"}
-                                    </p>
-                                </div>
-                                <div className="booking-detail-item">
-                                    <span className="booking-detail-label">
-                                        Appointment
-                                    </span>
-                                    <p>
-                                        {booking.scheduledDateTime
-                                            ? formatCustomerDateTime(booking.scheduledDateTime)
-                                            : "—"}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="booking-detail-row">
-                                <div className="booking-detail-item">
-                                    <span className="booking-detail-label">
-                                        Issue
-                                    </span>
-                                    <p>{booking.customerDescription || "—"}</p>
-                                </div>
-                                <div className="booking-detail-item">
-                                    <span className="booking-detail-label">
-                                        Work planned
-                                    </span>
-                                    <p>
-                                        {booking.serviceTypes?.length
-                                            ? booking.serviceTypes.join(", ")
-                                            : "—"}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="booking-detail-row">
-                                <div className="booking-detail-item">
-                                    <span className="booking-detail-label">
-                                        Estimated cost
-                                    </span>
-                                    <p>
-                                        {booking.estimatedCost != null
-                                            ? `${booking.estimatedCost} EUR`
-                                            : "—"}
-                                    </p>
-                                </div>
-                                <div className="booking-detail-item">
-                                    <span className="booking-detail-label">
-                                        Final cost
-                                    </span>
-                                    <p>
-                                        {booking.finalCost != null
-                                            ? `${booking.finalCost} EUR`
-                                            : "—"}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {booking.availabilityNotes && (
-                                <div className="booking-detail-row">
-                                    <div className="booking-detail-item">
-                                        <span className="booking-detail-label">
-                                            Availability notes
-                                        </span>
-                                        <p>{booking.availabilityNotes}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {booking.status === "CANCELLED" && (
-                                <div className="booking-detail-row">
-                                    <div className="booking-detail-item">
-                                        <span className="booking-detail-label">
-                                            Cancelled by
-                                        </span>
-                                        <p>
-                                            {cancellationSourceLabel(booking.cancelledBy)
-                                                ?? (isWorkshopCancellation(booking)
-                                                    ? "Workshop"
-                                                    : "—")}
-                                        </p>
-                                    </div>
-                                    <div className="booking-detail-item">
-                                        <span className="booking-detail-label">
-                                            Cancellation reason
-                                        </span>
-                                        <p>
-                                            {booking.cancellationReason?.trim()
-                                                || "—"}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {booking.status === "COMPLETED" && (
-                            <div className="booking-expanded-actions">
-                                <button
-                                    type="button"
-                                    className="logout-btn invoice-download-btn"
-                                    disabled={downloadingInvoiceId === booking.id}
-                                    onClick={() => downloadInvoice(booking)}
-                                >
-                                    {downloadingInvoiceId === booking.id
-                                        ? "Downloading…"
-                                        : "Invoice"}
-                                </button>
-                            </div>
-                        )}
-
-                        {canCancel && (
-                            <div className="booking-cancel-panel">
-                                <label className="booking-cancel-field">
-                                    <span className="booking-detail-label">
-                                        Cancellation reason
-                                    </span>
-                                    <input
-                                        placeholder="Required to cancel"
-                                        value={
-                                            cancelForms[booking.id]
-                                                ?.reason ?? ""
-                                        }
-                                        onChange={(e) =>
-                                            setCancelForms((prev) => ({
-                                                ...prev,
-                                                [booking.id]: {
-                                                    ...prev[booking.id],
-                                                    reason: e.target.value,
-                                                },
-                                            }))
-                                        }
-                                    />
-                                </label>
-                                <button
-                                    type="button"
-                                    className="danger-btn"
-                                    disabled={cancellingBookingId === booking.id}
-                                    onClick={() => cancelBooking(booking)}
-                                >
-                                    {cancellingBookingId === booking.id
-                                        ? "Cancelling…"
-                                        : "Cancel booking"}
-                                </button>
-                            </div>
-                        )}
+                {booking.status === "COMPLETED" && (
+                    <div className="button-row">
+                        <button
+                            type="button"
+                            className="button button-secondary button-small"
+                            disabled={downloadingInvoiceId === booking.id}
+                            onClick={() => downloadInvoice(booking)}
+                        >
+                            {downloadingInvoiceId === booking.id
+                                ? "Downloading…"
+                                : "Download invoice"}
+                        </button>
                     </div>
                 )}
-            </div>
+
+                {canCancel && (
+                    <form
+                        className="row-section inline-action"
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            cancelBooking(booking);
+                        }}
+                    >
+                        <label className="field">
+                            <span className="field-label">Cancellation reason</span>
+                            <input
+                                className="input"
+                                aria-describedby={`cancel-hint-${booking.id}`}
+                                value={cancelForms[booking.id]?.reason ?? ""}
+                                onChange={(e) =>
+                                    setCancelForms((prev) => ({
+                                        ...prev,
+                                        [booking.id]: {
+                                            ...prev[booking.id],
+                                            reason: e.target.value,
+                                        },
+                                    }))
+                                }
+                            />
+                            <span id={`cancel-hint-${booking.id}`} className="field-hint">
+                                Required to cancel.
+                            </span>
+                        </label>
+                        <button
+                            type="submit"
+                            className="button button-danger"
+                            disabled={cancellingBookingId === booking.id}
+                        >
+                            {cancellingBookingId === booking.id
+                                ? "Cancelling…"
+                                : "Cancel booking"}
+                        </button>
+                    </form>
+                )}
+            </ExpandableRow>
         );
     };
 
-    return (
-        <div className="client-dashboard-shell">
-            <div className="dashboard client-dashboard">
-                <div className="dashboard-header">
-                    <div>
-                        <Logo className="logo" />
-                        <p className="dashboard-user">Signed in as {session?.name}</p>
-                    </div>
+    const renderVehicleRow = (vehicle, { former = false } = {}) => {
+        const key = former ? `history-${vehicle.id}` : vehicle.id;
+        const expanded = expandedVehicleId === key;
+        const hasOpenBooking = !former && vehicleIdsWithOpenBookings.has(vehicle.id);
 
-                    <div className="dashboard-header-actions">
-                        <ThemeToggle />
-                        <div className="menu" ref={menuRef}>
+        return (
+            <ExpandableRow
+                key={vehicle.id}
+                eyebrow={vehicle.productionYear ? String(vehicle.productionYear) : undefined}
+                title={vehicle.modelLine ?? vehicle.model}
+                meta={`VIN ${vehicle.vin}`}
+                badge={
+                    former
+                        ? <span className="badge">Former</span>
+                        : hasOpenBooking
+                            ? <span className="badge badge-in-progress">In service</span>
+                            : null
+                }
+                muted={former}
+                expanded={expanded}
+                onToggle={() =>
+                    setExpandedVehicleId((current) => (current === key ? null : key))
+                }
+            >
+                <DetailList items={vehicleDetailItems(vehicle)} />
+                {!former && (
+                    <div className="row-section stack">
+                        {hasOpenBooking && (
+                            <p className="card-text">
+                                Cannot remove while a booking is pending or in progress.
+                            </p>
+                        )}
+                        <div className="button-row">
                             <button
                                 type="button"
-                                className="menu-btn"
-                                aria-label="Open menu"
-                                aria-expanded={menuOpen}
-                                aria-haspopup="menu"
-                                onClick={() => setMenuOpen((open) => !open)}
+                                className="button button-danger button-small"
+                                disabled={removingVehicleId === vehicle.id || hasOpenBooking}
+                                onClick={() => removeVehicle(vehicle)}
                             >
-                                <span />
-                                <span />
-                                <span />
+                                {removingVehicleId === vehicle.id ? "Removing…" : "Remove vehicle"}
                             </button>
-
-                            {menuOpen && (
-                                <div className="menu-panel" role="menu">
-                                    {Object.entries(SECTIONS).map(([id, label]) => (
-                                        <button
-                                            key={id}
-                                            type="button"
-                                            role="menuitem"
-                                            className={
-                                                section === id
-                                                    ? "menu-item menu-item-active"
-                                                    : "menu-item"
-                                            }
-                                            onClick={() => selectSection(id)}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
                         </div>
-
-                        <button type="button" className="logout-btn" onClick={logout}>
-                            Sign out
-                        </button>
                     </div>
-                </div>
+                )}
+            </ExpandableRow>
+        );
+    };
 
-                {section === "vehicles" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>Vehicles</h2>
+    const loadingStatus = loading && (
+        <p className="status-text" role="status">
+            Loading…
+        </p>
+    );
+    const loadError = error && (
+        <p className="message message-error" role="alert">
+            {error}
+        </p>
+    );
+
+    return (
+        <AppShell
+            pageTitle={SECTIONS[section]}
+            title="Garage"
+            homeTo="/client"
+            userName={session?.name}
+            onSignOut={logout}
+            sections={SECTIONS}
+            activeSection={section}
+            onSelectSection={selectSection}
+            localAction={
+                vehicles.length > 0 ? (
+                    <button
+                        type="button"
+                        className="button button-primary button-small"
+                        onClick={() => navigate("/client/request-service")}
+                    >
+                        Request service
+                    </button>
+                ) : null
+            }
+        >
+            <header className="page-header">
+                <h1 ref={headingRef} tabIndex={-1} className="page-title">
+                    {SECTIONS[section]}
+                </h1>
+                <p className="page-lede">{LEDES[section]}</p>
+            </header>
+
+            {section === "vehicles" && (
+                <div className="stack">
+                    <div className="button-row">
                         <button
                             type="button"
-                            className="primary-btn section-action-btn"
+                            className="button button-secondary"
                             onClick={() => navigate("/client/add-vehicle")}
                         >
                             Add a vehicle
                         </button>
-                        {loading && <p>Loading…</p>}
-                        {error && <p className="form-error">{error}</p>}
-                        {vehicleError && <p className="form-error">{vehicleError}</p>}
-                        <div className="vehicle-list">
-                            {vehicles.map((vehicle) => {
-                                const hasOpenBooking = vehicleIdsWithOpenBookings.has(vehicle.id);
-                                const expanded = expandedVehicleId === vehicle.id;
-                                return (
-                                    <div key={vehicle.id} className="vehicle-row">
-                                        <div className="vehicle-row-top">
-                                            <button
-                                                type="button"
-                                                className="vehicle-row-toggle"
-                                                aria-expanded={expanded}
-                                                onClick={() =>
-                                                    setExpandedVehicleId((current) =>
-                                                        current === vehicle.id ? null : vehicle.id
-                                                    )
-                                                }
-                                            >
-                                                <div className="vehicle-row-heading">
-                                                    <p className="vehicle-row-title">
-                                                        {vehicle.modelLine ?? vehicle.model}
-                                                    </p>
-                                                    <span className="booking-row-chevron" aria-hidden="true">
-                                                        {expanded ? "▾" : "▸"}
-                                                    </span>
-                                                </div>
-                                                <p className="vehicle-row-meta">VIN {vehicle.vin}</p>
-                                            </button>
-                                        </div>
-                                        {expanded && (
-                                            <div className="vehicle-row-details">
-                                                <VehicleDetails vehicle={vehicle} />
-                                                {hasOpenBooking && (
-                                                    <p className="vehicle-remove-note">
-                                                        Cannot remove while a booking is pending or in progress.
-                                                    </p>
-                                                )}
-                                                <div className="vehicle-row-expanded-actions">
-                                                    <button
-                                                        type="button"
-                                                        className="danger-btn vehicle-row-action"
-                                                        disabled={
-                                                            removingVehicleId === vehicle.id
-                                                            || hasOpenBooking
-                                                        }
-                                                        onClick={() => removeVehicle(vehicle)}
-                                                    >
-                                                        {removingVehicleId === vehicle.id
-                                                            ? "Removing…"
-                                                            : "Remove"}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
+                    </div>
+                    {loadingStatus}
+                    {loadError}
+                    {vehicleError && (
+                        <p className="message message-error" role="alert">
+                            {vehicleError}
+                        </p>
+                    )}
+                    {!loading && !error && vehicles.length === 0 && (
+                        <p className="empty-state">No vehicles yet. Add your first Hussarya to book service.</p>
+                    )}
+                    {vehicles.length > 0 && (
+                        <ul className="row-list">
+                            {vehicles.map((vehicle) => renderVehicleRow(vehicle))}
+                        </ul>
+                    )}
 
-                        {!loading && vehicleHistory.length > 0 && (
-                            <div className="vehicle-history-block">
-                                <button
-                                    type="button"
-                                    className="vehicle-history-toggle"
-                                    aria-expanded={showVehicleHistory}
-                                    onClick={() => setShowVehicleHistory((open) => !open)}
-                                >
-                                    <span>
-                                        Former vehicles
-                                        <span className="vehicle-history-count">
-                                            {vehicleHistory.length}
-                                        </span>
-                                    </span>
-                                    <span className="vehicle-history-chevron" aria-hidden="true">
-                                        {showVehicleHistory ? "▾" : "▸"}
-                                    </span>
-                                </button>
-                                {showVehicleHistory && (
-                                    <div className="vehicle-list vehicle-list-history">
-                                        {vehicleHistory.map((vehicle) => {
-                                            const expanded = expandedVehicleId === `history-${vehicle.id}`;
-                                            return (
-                                                <div
-                                                    key={vehicle.id}
-                                                    className="vehicle-row vehicle-row-history"
-                                                >
-                                                    <div className="vehicle-row-top">
-                                                        <button
-                                                            type="button"
-                                                            className="vehicle-row-toggle"
-                                                            aria-expanded={expanded}
-                                                            onClick={() =>
-                                                                setExpandedVehicleId((current) =>
-                                                                    current === `history-${vehicle.id}`
-                                                                        ? null
-                                                                        : `history-${vehicle.id}`
-                                                                )
-                                                            }
-                                                        >
-                                                            <div className="vehicle-row-heading">
-                                                                <p className="vehicle-row-title">
-                                                                    {vehicle.modelLine ?? vehicle.model}
-                                                                </p>
-                                                                <span className="booking-row-chevron" aria-hidden="true">
-                                                                    {expanded ? "▾" : "▸"}
-                                                                </span>
-                                                            </div>
-                                                            <p className="vehicle-row-meta">VIN {vehicle.vin}</p>
-                                                        </button>
-                                                        <span className="vehicle-history-badge">Former</span>
-                                                    </div>
-                                                    {expanded && (
-                                                        <div className="vehicle-row-details">
-                                                            <VehicleDetails vehicle={vehicle} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </section>
-                )}
-
-                {section === "bookings" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>Bookings</h2>
-                        {vehicles.length > 0 && (
+                    {!loading && vehicleHistory.length > 0 && (
+                        <div className="former-block">
                             <button
                                 type="button"
-                                className="primary-btn section-action-btn"
-                                onClick={() => navigate("/client/request-service")}
+                                className="disclosure-btn"
+                                aria-expanded={showVehicleHistory}
+                                aria-controls="former-vehicles"
+                                onClick={() => setShowVehicleHistory((open) => !open)}
                             >
-                                Request service
+                                Former vehicles ({vehicleHistory.length})
+                                <span className="row-chevron" aria-hidden="true" />
                             </button>
-                        )}
-                        {loading && <p>Loading…</p>}
-                        {error && <p className="form-error">{error}</p>}
-                        {bookingError && <p className="form-error">{bookingError}</p>}
-                        {!loading && (activeBookings.length > 0 || vehicles.length > 0) && (
-                            <label className="booking-vehicle-filter">
-                                <span className="booking-vehicle-filter-label">Vehicle</span>
+                            {showVehicleHistory && (
+                                <ul id="former-vehicles" className="row-list">
+                                    {vehicleHistory.map((vehicle) =>
+                                        renderVehicleRow(vehicle, { former: true })
+                                    )}
+                                </ul>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {section === "bookings" && (
+                <div className="stack">
+                    {loadingStatus}
+                    {loadError}
+                    {bookingError && (
+                        <p className="message message-error" role="alert">
+                            {bookingError}
+                        </p>
+                    )}
+                    {!loading && vehicles.length === 0 && (
+                        <div className="empty-state stack">
+                            <p>Add a vehicle before requesting service.</p>
+                            <div>
+                                <button
+                                    type="button"
+                                    className="button button-primary"
+                                    onClick={() => navigate("/client/add-vehicle")}
+                                >
+                                    Add a vehicle
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {!loading && (activeBookings.length > 0 || vehicles.length > 0) && (
+                        <div className="toolbar">
+                            <label className="field">
+                                <span className="field-label">Vehicle</span>
                                 <select
+                                    className="select"
                                     value={bookingVehicleFilter}
                                     onChange={(e) => setBookingVehicleFilter(e.target.value)}
                                 >
@@ -822,97 +637,107 @@ export default function ClientDashboard() {
                                     ))}
                                 </select>
                             </label>
-                        )}
-                        <div className="booking-list">
-                            {activeBookings.map((booking) => renderBookingCard(booking))}
                         </div>
-                    </section>
-                )}
+                    )}
+                    {!loading && vehicles.length > 0 && activeBookings.length === 0 && (
+                        <p className="empty-state">No open bookings.</p>
+                    )}
+                    {activeBookings.length > 0 && (
+                        <ul className="row-list">
+                            {activeBookings.map((booking) => renderBookingRow(booking))}
+                        </ul>
+                    )}
+                </div>
+            )}
 
-                {section === "archive" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>Archive</h2>
-                        {loading && <p>Loading…</p>}
-                        {error && <p className="form-error">{error}</p>}
-                        {bookingError && <p className="form-error">{bookingError}</p>}
-                        {!loading && bookings.some((b) => isArchiveStatus(b.status)) && (
-                            <label className="archive-find">
-                                <span className="archive-find-label">Find</span>
+            {section === "archive" && (
+                <div className="stack">
+                    {loadingStatus}
+                    {loadError}
+                    {bookingError && (
+                        <p className="message message-error" role="alert">
+                            {bookingError}
+                        </p>
+                    )}
+                    {!loading && hasArchive && (
+                        <div className="toolbar">
+                            <label className="field">
+                                <span className="field-label">Search archive</span>
                                 <input
+                                    className="input"
                                     type="search"
-                                    placeholder="Search by model, VIN, status, reason…"
+                                    placeholder="Model, VIN, status, reason"
                                     value={archiveQuery}
                                     onChange={(e) => setArchiveQuery(e.target.value)}
                                 />
                             </label>
-                        )}
-                        <div className="booking-list">
-                            {archiveBookings.map((booking) => renderBookingCard(booking, { archive: true }))}
                         </div>
-                    </section>
-                )}
+                    )}
+                    {!loading && !hasArchive && (
+                        <p className="empty-state">No completed or cancelled bookings yet.</p>
+                    )}
+                    {hasArchive && archiveBookings.length === 0 && (
+                        <p className="empty-state" role="status">
+                            No bookings match “{archiveQuery}”.
+                        </p>
+                    )}
+                    {archiveBookings.length > 0 && (
+                        <ul className="row-list">
+                            {archiveBookings.map((booking) =>
+                                renderBookingRow(booking, { archive: true })
+                            )}
+                        </ul>
+                    )}
+                </div>
+            )}
 
-                {section === "account" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>Account management</h2>
+            {section === "account" && (
+                <div className="stack">
+                    <PasswordCard
+                        open={showPasswordForm}
+                        onOpenChange={(open) => {
+                            if (open) setShowDeleteAccount(false);
+                            setShowPasswordForm(open);
+                        }}
+                    />
 
-                        {!showPasswordForm ? (
-                            <button
-                                type="button"
-                                className="primary-btn section-action-btn"
-                                onClick={() => {
-                                    setShowDeleteAccount(false);
-                                    setShowPasswordForm(true);
-                                }}
-                            >
-                                Change password
-                            </button>
-                        ) : (
-                            <div className="account-password-panel">
-                                <div className="account-password-toolbar">
-                                    <h3>Change password</h3>
-                                    <button
-                                        type="button"
-                                        className="logout-btn"
-                                        onClick={() => setShowPasswordForm(false)}
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                                <ChangePasswordForm embedded />
-                            </div>
-                        )}
-
-                        <div className="account-danger-zone">
-                            <h3>Delete account</h3>
-                            <p>
+                    <section className="card card-danger" aria-labelledby="delete-account-title">
+                        <div className="card-header">
+                            <h2 id="delete-account-title" className="card-title">
+                                Delete account
+                            </h2>
+                        </div>
+                        <div className="stack">
+                            <p className="card-text">
                                 Open service bookings must be cancelled or completed first.
                                 We will email you a confirmation link before anything is deleted.
                             </p>
 
                             {!showDeleteAccount ? (
-                                <button
-                                    type="button"
-                                    className="danger-btn"
-                                    onClick={() => {
-                                        setShowPasswordForm(false);
-                                        setDeleteAccountMessage("");
-                                        setDeleteAccountError("");
-                                        setShowDeleteAccount(true);
-                                    }}
-                                >
-                                    Delete account
-                                </button>
+                                <div className="button-row">
+                                    <button
+                                        type="button"
+                                        className="button button-danger button-small"
+                                        onClick={() => {
+                                            setShowPasswordForm(false);
+                                            setDeleteAccountMessage("");
+                                            setDeleteAccountError("");
+                                            setShowDeleteAccount(true);
+                                        }}
+                                    >
+                                        Delete account
+                                    </button>
+                                </div>
                             ) : (
-                                <div className="account-delete-panel">
-                                    <p>
+                                <>
+                                    <p className="message message-info">
                                         We will send a confirmation link to your email.
                                         Your account stays active until you open that link.
                                     </p>
-                                    <div className="account-delete-actions">
+                                    <div className="button-row">
                                         <button
                                             type="button"
-                                            className="danger-btn"
+                                            className="button button-danger button-small"
                                             disabled={deleteAccountLoading || Boolean(deleteAccountMessage)}
                                             onClick={requestAccountDeletion}
                                         >
@@ -922,7 +747,7 @@ export default function ClientDashboard() {
                                         </button>
                                         <button
                                             type="button"
-                                            className="logout-btn"
+                                            className="button button-neutral button-small"
                                             disabled={deleteAccountLoading}
                                             onClick={() => {
                                                 setShowDeleteAccount(false);
@@ -934,21 +759,21 @@ export default function ClientDashboard() {
                                         </button>
                                     </div>
                                     {deleteAccountError && (
-                                        <p className="form-error" role="alert">
+                                        <p className="message message-error" role="alert">
                                             {deleteAccountError}
                                         </p>
                                     )}
                                     {deleteAccountMessage && (
-                                        <p className="form-success" role="status">
+                                        <p className="message message-success" role="status">
                                             {deleteAccountMessage}
                                         </p>
                                     )}
-                                </div>
+                                </>
                             )}
                         </div>
                     </section>
-                )}
-            </div>
-        </div>
+                </div>
+            )}
+        </AppShell>
     );
 }

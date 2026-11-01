@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
 
-// Consultant records the agreed appointment when accepting a request; actor comes from the JWT.
+/** Appointment the consultant confirms when accepting a request; the actor comes from the JWT. */
 public class ScheduleBookingRequest {
 
     @NotNull(message = "Scheduled date and time is required")

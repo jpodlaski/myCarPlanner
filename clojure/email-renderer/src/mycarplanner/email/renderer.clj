@@ -17,7 +17,9 @@
 
 (defn- format-status [s]
   (-> (str s)
-      (str/replace "_" " ")))
+      (str/replace "_" " ")
+      (str/lower-case)
+      (str/capitalize)))
 
 (defn- format-service-types [service-types]
   (when (seq service-types)
@@ -170,6 +172,16 @@
                 (str "Service on your " model " is complete. "
                      "Your invoice is attached to this email.")
                 (str "There is an update regarding your service for " model "."))
+        headline (case event
+                   "created" "We’ve received your request."
+                   "technician_assigned" "It’s time to drop off your car."
+                   "status_changed" "Your booking has an update."
+                   "appointment_scheduled" "Your appointment is confirmed."
+                   "work_plan_updated" "Your work plan has changed."
+                   "booking_rejected" "We couldn’t accept this booking."
+                   "booking_cancelled" "Your booking has been cancelled."
+                   "booking_completed" "Your car is ready."
+                   "Your booking has an update.")
         pickup-note (when (= event "booking_completed")
                       (str "You can pick up your vehicle during workshop opening hours, "
                            layout/workshop-hours "."))
@@ -182,7 +194,10 @@
                    name
                    (str (layout/p intro)
                         (or details-html "")
-                        (when pickup-note (layout/p pickup-note))))]
+                        (when pickup-note (layout/p pickup-note)))
+                   {:title headline
+                    :eyebrow (when bookingId (str "Booking #" bookingId))
+                    :preheader intro})]
     {:subject subject
      :textBody text-body
      :htmlBody html-body}))

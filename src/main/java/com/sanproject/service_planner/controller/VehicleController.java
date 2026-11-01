@@ -19,7 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 
-// Vehicle CRUD scoped to the authenticated customer; catalog drives the configurator.
+/** Vehicle CRUD for the signed-in customer, plus the catalog that drives the configurator. */
 @RestController
 @RequestMapping("/vehicles")
 public class VehicleController {

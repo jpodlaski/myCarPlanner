@@ -1,16 +1,22 @@
-import { DARK } from "../theme/theme";
-import { useTheme } from "../theme/useTheme";
+/**
+ * Brand marks cut from public/logo.png (transparent, so they sit on either theme).
+ * "lockup" is wings + wordmark; "emblem" is the wings alone for the global nav.
+ */
+const VARIANTS = {
+    lockup: { src: "/img/logo-lockup.png", width: 720, height: 383 },
+    emblem: { src: "/img/logo-emblem.png", width: 210, height: 96 },
+};
 
-/** Brand lock-up: logo.svg for the light theme, logo-inverse.svg for the dark one. */
-export default function Logo({ className = "" }) {
-    const { theme } = useTheme();
-    const src = theme === DARK ? "/logo-inverse.svg" : "/logo.svg";
-
+export default function Logo({ variant = "lockup", alt = "Hussarya", className }) {
+    const { src, width, height } = VARIANTS[variant] ?? VARIANTS.lockup;
     return (
         <img
-            className={["logo-mark", className].filter(Boolean).join(" ")}
+            className={className}
             src={src}
-            alt="myCarPlanner"
+            width={width}
+            height={height}
+            alt={alt}
+            decoding="async"
         />
     );
 }

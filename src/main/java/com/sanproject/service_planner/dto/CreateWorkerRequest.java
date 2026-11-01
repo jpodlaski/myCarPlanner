@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-// New workshop account; caller must be management (enforced via JWT).
+/** New workshop account; the caller must be management. */
 public class CreateWorkerRequest {
 
     @NotBlank(message = "First name is required")

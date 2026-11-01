@@ -2,7 +2,7 @@ package com.sanproject.service_planner.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
-// Shared login DTO: email for clients, login name for employees.
+/** Shared login body: email for clients, login name for employees. */
 public class LoginRequest {
 
     @NotBlank(message = "Login is required")

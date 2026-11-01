@@ -11,8 +11,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 /**
- * SMTP sender (Spring Mail). Locally points at Mailhog so emails appear in http://localhost:8025
- * instead of a real inbox — useful for demos and debugging templates without sending spam.
+ * SMTP sender (Spring Mail). Locally it points at MailHog, which shows mail at http://localhost:8025.
  */
 @Service
 public class MailService {

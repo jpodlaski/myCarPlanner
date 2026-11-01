@@ -12,10 +12,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 /**
- * Creates and verifies JWTs (JSON Web Tokens) signed with HMAC-SHA256.
- * A JWT is a compact, signed string: header.payload.signature. Anyone can read the
- * payload, but only someone with the secret can forge a valid signature — that is how
- * the API trusts "this request is from user id X with role Y" without a server-side session store.
+ * Issues and verifies HMAC-SHA256 JWTs. The subject is the user id; role and name are claims
+ * read by AuthSupport and the frontend.
  */
 @Service
 public class JwtService {
@@ -35,7 +33,6 @@ public class JwtService {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
-        // subject = user id; custom claims carry role/name used by AuthSupport and the UI.
         return Jwts.builder()
                 .subject(String.valueOf(id))
                 .claim("role", role)
@@ -48,7 +45,6 @@ public class JwtService {
 
     public AuthUser parseToken(String token) {
         try {
-            // verifyWith checks the signature and rejects expired/tampered tokens.
             Claims claims = Jwts.parser()
                     .verifyWith(secretKey)
                     .build()

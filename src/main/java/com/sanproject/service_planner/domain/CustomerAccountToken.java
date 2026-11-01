@@ -15,7 +15,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 /**
- * One-time client tokens (password reset, email verification).
+ * One-time client tokens (password reset, email verification, account deletion).
  * Only the SHA-256 hash is stored — the raw token is emailed once and never persisted.
  */
 @Entity

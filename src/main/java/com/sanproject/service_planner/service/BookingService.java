@@ -12,6 +12,7 @@ import com.sanproject.service_planner.dto.CancelBookingRequest;
 import com.sanproject.service_planner.dto.ClaimBookingRequest;
 import com.sanproject.service_planner.dto.CompleteBookingRequest;
 import com.sanproject.service_planner.dto.CreateBookingRequest;
+import com.sanproject.service_planner.dto.PageResponse;
 import com.sanproject.service_planner.dto.RejectBookingRequest;
 import com.sanproject.service_planner.dto.ScheduleBookingRequest;
 import com.sanproject.service_planner.dto.UpdateWorkPlanRequest;
@@ -21,6 +22,8 @@ import com.sanproject.service_planner.repository.VehicleRepository;
 import com.sanproject.service_planner.repository.WorkerRepository;
 import com.sanproject.service_planner.security.AuthUser;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +31,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Core domain logic: the booking state machine.
@@ -51,18 +56,21 @@ public class BookingService {
     private final WorkerRepository workerRepository;
     private final BookingNotificationService notificationService;
     private final InvoicePdfService invoicePdfService;
+    private final InvoiceNumberService invoiceNumberService;
 
     public BookingService(
             ServiceBookingRepository bookingRepository,
             VehicleRepository vehicleRepository,
             WorkerRepository workerRepository,
             BookingNotificationService notificationService,
-            InvoicePdfService invoicePdfService) {
+            InvoicePdfService invoicePdfService,
+            InvoiceNumberService invoiceNumberService) {
         this.bookingRepository = bookingRepository;
         this.vehicleRepository = vehicleRepository;
         this.workerRepository = workerRepository;
         this.notificationService = notificationService;
         this.invoicePdfService = invoicePdfService;
+        this.invoiceNumberService = invoiceNumberService;
     }
 
     public List<ServiceBooking> getAllBookings() {
@@ -371,16 +379,43 @@ public class BookingService {
         BookingStatus previousStatus = booking.getStatus();
         booking.setFinalCost(request.getFinalCost());
         booking.setStatus(BookingStatus.COMPLETED);
+        invoiceNumberService.assign(booking, LocalDateTime.now());
 
         ServiceBooking saved = bookingRepository.save(booking);
         notificationService.notifyCompleted(saved, previousStatus);
         return reloadForResponse(saved.getId());
     }
 
-    public List<AdminBookingResponse> getAdminBookings() {
-        return bookingRepository.findAllWithDetails().stream()
-                .map(this::toAdminBookingResponse)
-                .toList();
+    /**
+     * Management booking history, newest first. `query` matches booking number, customer, email,
+     * vehicle, VIN, assigned worker, description, cancellation reason or status ("in progress").
+     */
+    public PageResponse<AdminBookingResponse> getAdminBookings(int page, int size, String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        if (q.startsWith("#")) {
+            q = q.substring(1);
+        }
+        String term = q;
+        List<BookingStatus> statuses = term.isEmpty()
+                ? List.of()
+                : Arrays.stream(BookingStatus.values())
+                        .filter(s -> s.name().replace('_', ' ').toLowerCase(Locale.ROOT).contains(term))
+                        .toList();
+
+        Page<Long> ids = bookingRepository.findAdminBookingIds(
+                "%" + term + "%",
+                !statuses.isEmpty(),
+                // IN needs a non-empty list even when the status filter is switched off.
+                statuses.isEmpty() ? List.of(BookingStatus.SCHEDULED) : statuses,
+                PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100)));
+
+        List<AdminBookingResponse> items = ids.isEmpty()
+                ? List.of()
+                : bookingRepository.findAllWithDetailsByIdIn(ids.getContent()).stream()
+                        .map(this::toAdminBookingResponse)
+                        .toList();
+        return new PageResponse<>(items, ids.getNumber(), ids.getSize(),
+                ids.getTotalElements(), ids.getTotalPages());
     }
 
     private AdminBookingResponse toAdminBookingResponse(ServiceBooking booking) {

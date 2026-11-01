@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-// Parses catalog era strings like "2018–2023" or "2019-present" into a descending year list.
+/** Parses catalog eras such as "2018–2023" or "2024-present" into years, newest first. */
 public final class ProductionYearParser {
 
     private ProductionYearParser() {

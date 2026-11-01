@@ -17,9 +17,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Shared base for Admin and Worker using JOINED inheritance:
- * common columns live in `employee`, subtype-specific rows in `admin` / `worker`.
- * This models "all staff share login fields" while keeping polymorphic queries via EmployeeRepository.
+ * Shared base for Admin and Worker (JOINED inheritance): login fields live in `employee`,
+ * subtype columns in `admin` / `worker`.
  */
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)

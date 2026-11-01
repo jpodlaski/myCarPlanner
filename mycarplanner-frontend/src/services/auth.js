@@ -1,9 +1,8 @@
 import { MANAGEMENT_ROLES, WORKSHOP_ROLES } from "../constants/roles";
 
 /**
- * Browser session helpers. We store { token, role, id, name } in localStorage after login.
- * Logout clears this key. Deleted client accounts are also rejected by the API (401).
- * Other open tabs listen via storage / BroadcastChannel and leave the app immediately.
+ * Session stored in localStorage as { token, role, id, name }. Clearing it is broadcast through
+ * the storage event and BroadcastChannel so other open tabs sign out too.
  */
 const SESSION_KEY = "mycarplanner_session";
 const SESSION_CHANNEL = "mycarplanner-session";

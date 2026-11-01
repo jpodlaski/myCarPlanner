@@ -1,6 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { carImageProps } from "../constants/models";
+import { useFocusOnChange } from "../hooks/useFocusOnChange";
 import { api } from "../services/api";
 import "./VehicleConfigurator.css";
+
+const MODEL_IMAGES = {
+    "hussarya-thunder": "thunder",
+    "hussarya-bastion": "bastion",
+    "hussarya-zefir": "zefir",
+};
+
+function modelImage(modelLineId) {
+    return MODEL_IMAGES[modelLineId] ?? null;
+}
 
 function uniqueBy(items, keyFn) {
     const seen = new Set();
@@ -13,9 +25,8 @@ function uniqueBy(items, keyFn) {
 }
 
 /**
- * Guided one-step-at-a-time picker from GET /vehicles/catalog.
- * Model-first (how owners think), then body → engine → transmission → year → VIN.
- * A breadcrumb of choices keeps the path clear; Back undoes a mis-select.
+ * Step-by-step picker over GET /vehicles/catalog: model, body style, engine, transmission,
+ * year, then VIN. Earlier choices stay visible as a breadcrumb; Back undoes the last one.
  */
 export default function VehicleConfigurator({ onVehicleAdded }) {
     const [catalog, setCatalog] = useState(null);
@@ -36,17 +47,6 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
     const [vinTaken, setVinTaken] = useState(false);
     const [vinChecking, setVinChecking] = useState(false);
 
-    const actionsRef = useRef(null);
-
-    const scrollToContinue = () => {
-        // Let selection styles paint, then bring Continue clearly into view.
-        requestAnimationFrame(() => {
-            actionsRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-            });
-        });
-    };
 
     useEffect(() => {
         api.get("/vehicles/catalog")
@@ -94,8 +94,9 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
     const currentStepId = steps[step] ?? "model";
     const stepNumber = step + 1;
     const totalSteps = steps.length;
+    const stepHeadingRef = useFocusOnChange(currentStepId);
 
-    // Live uniqueness check so paste/type shows a conflict before submit.
+    // Check VIN availability while typing so a conflict shows before submit.
     useEffect(() => {
         const normalized = vin.trim().replace(/\s+/g, "").toUpperCase();
         if (!normalized || currentStepId !== "vin") {
@@ -284,78 +285,108 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
     };
 
     if (loading) {
-        return <p>Loading Hussarya catalog…</p>;
+        return (
+            <p className="status-text" role="status">
+                Loading Hussarya catalog…
+            </p>
+        );
     }
 
     if (!catalog) {
-        return <p className="config-error">{error || "Catalog unavailable."}</p>;
+        return (
+            <p className="message message-error" role="alert">
+                {error || "Catalog unavailable."}
+            </p>
+        );
     }
 
     const titles = {
-        model: "Choose your model",
-        body: "Choose body style",
-        engine: "Choose engine",
-        transmission: "Choose transmission",
-        year: "Choose production year",
-        vin: "Enter VIN",
+        model: "Choose your model.",
+        body: "Choose body style.",
+        engine: "Choose engine.",
+        transmission: "Choose transmission.",
+        year: "Choose production year.",
+        vin: "Enter the VIN.",
     };
+
+    const optionClass = (selected, extra = "") =>
+        ["option-btn", extra, selected ? "selected" : ""].filter(Boolean).join(" ");
 
     return (
         <div className="vehicle-configurator">
+            <div className="config-progress" aria-hidden="true">
+                <span style={{ width: `${(stepNumber / totalSteps) * 100}%` }} />
+            </div>
+
             {trail.length > 0 && (
-                <div className="config-trail" aria-label="Your selections so far">
-                    {trail.map((item, index) => (
-                        <span key={`${item.stepId}-${item.label}`} className="config-trail-item">
-                            {index > 0 && <span className="config-trail-sep">/</span>}
-                            <button
-                                type="button"
-                                className="config-trail-btn"
-                                onClick={() => jumpToStep(item.stepId)}
-                            >
-                                {item.label}
-                            </button>
-                        </span>
-                    ))}
-                </div>
+                <nav aria-label="Your selections so far">
+                    <ol className="config-trail">
+                        {trail.map((item) => (
+                            <li key={`${item.stepId}-${item.label}`}>
+                                <button
+                                    type="button"
+                                    className="config-trail-btn"
+                                    onClick={() => jumpToStep(item.stepId)}
+                                >
+                                    <span className="visually-hidden">Change </span>
+                                    {item.label}
+                                </button>
+                            </li>
+                        ))}
+                    </ol>
+                </nav>
             )}
 
-            <div className="config-step-panel" key={currentStepId}>
+            <section className="config-step-panel" key={currentStepId} aria-labelledby="config-step-title">
                 <div className="config-step-meta">
                     <p className="config-step-count">
                         Step {stepNumber} of {totalSteps}
                     </p>
-                    <h3>{titles[currentStepId]}</h3>
+                    <h2 id="config-step-title" ref={stepHeadingRef} tabIndex={-1} className="config-step-title">
+                        {titles[currentStepId]}
+                    </h2>
                 </div>
 
                 {currentStepId === "model" && (
                     <>
-                        <input
-                            className="model-search"
-                            type="search"
-                            placeholder="Search models"
-                            value={modelQuery}
-                            onChange={(e) => setModelQuery(e.target.value)}
-                        />
-                        <div className="option-grid">
-                            {filteredModels.length === 0 && (
-                                <p>No models match “{modelQuery}”.</p>
-                            )}
-                            {filteredModels.map((line) => (
-                                <button
-                                    key={line.id}
-                                    type="button"
-                                    className={`option-btn${modelLineId === line.id ? " selected" : ""}`}
-                                    onClick={() => {
-                                        setModelLineId(line.id);
-                                        clearAfter("model");
-                                        scrollToContinue();
-                                    }}
-                                >
-                                    {line.name}
-                                    <br />
-                                    <small>{line.era}</small>
-                                </button>
-                            ))}
+                        <label className="field model-search">
+                            <span className="field-label">Search models</span>
+                            <input
+                                className="input"
+                                type="search"
+                                value={modelQuery}
+                                onChange={(e) => setModelQuery(e.target.value)}
+                            />
+                        </label>
+                        {filteredModels.length === 0 && (
+                            <p className="empty-state" role="status">
+                                No models match “{modelQuery}”.
+                            </p>
+                        )}
+                        <div className="option-grid option-grid-models">
+                            {filteredModels.map((line) => {
+                                const image = modelImage(line.id);
+                                return (
+                                    <button
+                                        key={line.id}
+                                        type="button"
+                                        aria-pressed={modelLineId === line.id}
+                                        className={optionClass(modelLineId === line.id, "option-model")}
+                                        onClick={() => {
+                                            setModelLineId(line.id);
+                                            clearAfter("model");
+                                        }}
+                                    >
+                                        {image && (
+                                            <span className="option-model-image studio">
+                                                <img {...carImageProps(image, "(max-width: 833px) 100vw, 320px")} alt="" loading="lazy" />
+                                            </span>
+                                        )}
+                                        <span className="option-label">{line.name}</span>
+                                        <span className="option-sub">{line.era}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </>
                 )}
@@ -366,14 +397,14 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
                             <button
                                 key={style.id}
                                 type="button"
-                                className={`option-btn${bodyStyleId === style.id ? " selected" : ""}`}
+                                aria-pressed={bodyStyleId === style.id}
+                                className={optionClass(bodyStyleId === style.id)}
                                 onClick={() => {
                                     setBodyStyleId(style.id);
                                     clearAfter("body");
-                                    scrollToContinue();
                                 }}
                             >
-                                {style.name}
+                                <span className="option-label">{style.name}</span>
                             </button>
                         ))}
                     </div>
@@ -385,16 +416,15 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
                             <button
                                 key={config.engine}
                                 type="button"
-                                className={`option-btn${engine === config.engine ? " selected" : ""}`}
+                                aria-pressed={engine === config.engine}
+                                className={optionClass(engine === config.engine)}
                                 onClick={() => {
                                     setEngine(config.engine);
                                     clearAfter("engine");
-                                    scrollToContinue();
                                 }}
                             >
-                                {config.engine}
-                                <br />
-                                <small>{config.power}</small>
+                                <span className="option-label">{config.engine}</span>
+                                <span className="option-sub">{config.power}</span>
                             </button>
                         ))}
                     </div>
@@ -406,35 +436,34 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
                             <button
                                 key={config.id}
                                 type="button"
-                                className={`option-btn${configurationId === config.id ? " selected" : ""}`}
+                                aria-pressed={configurationId === config.id}
+                                className={optionClass(configurationId === config.id)}
                                 onClick={() => {
                                     setConfigurationId(config.id);
                                     clearAfter("transmission");
-                                    scrollToContinue();
                                 }}
                             >
-                                {config.transmission}
-                                <br />
-                                <small>{config.drivetrain}</small>
+                                <span className="option-label">{config.transmission}</span>
+                                <span className="option-sub">{config.drivetrain}</span>
                             </button>
                         ))}
                     </div>
                 )}
 
                 {currentStepId === "year" && modelLine && (
-                    <div className="option-grid">
+                    <div className="option-grid option-grid-compact">
                         {modelLine.availableYears.map((year) => (
                             <button
                                 key={year}
                                 type="button"
-                                className={`option-btn${productionYear === year ? " selected" : ""}`}
+                                aria-pressed={productionYear === year}
+                                className={optionClass(productionYear === year)}
                                 onClick={() => {
                                     setProductionYear(year);
                                     clearAfter("year");
-                                    scrollToContinue();
                                 }}
                             >
-                                {year}
+                                <span className="option-label">{year}</span>
                             </button>
                         ))}
                     </div>
@@ -444,52 +473,65 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
                     <div className="vin-step">
                         {selectedConfiguration && (
                             <div className="config-summary">
-                                <p><strong>{selectedConfiguration.displayName}</strong></p>
-                                {productionYear && <p>Production year: {productionYear}</p>}
-                                <p>
-                                    Engine: {selectedConfiguration.engine} ({selectedConfiguration.power})
-                                </p>
-                                <p>Transmission: {selectedConfiguration.transmission}</p>
-                                <p>Drivetrain: {selectedConfiguration.drivetrain}</p>
+                                <p className="config-summary-title">{selectedConfiguration.displayName}</p>
+                                <dl className="detail-list">
+                                    {productionYear && (
+                                        <div className="detail-item">
+                                            <dt>Production year</dt>
+                                            <dd>{productionYear}</dd>
+                                        </div>
+                                    )}
+                                    <div className="detail-item">
+                                        <dt>Engine</dt>
+                                        <dd>
+                                            {selectedConfiguration.engine} ({selectedConfiguration.power})
+                                        </dd>
+                                    </div>
+                                    <div className="detail-item">
+                                        <dt>Transmission</dt>
+                                        <dd>{selectedConfiguration.transmission}</dd>
+                                    </div>
+                                    <div className="detail-item">
+                                        <dt>Drivetrain</dt>
+                                        <dd>{selectedConfiguration.drivetrain}</dd>
+                                    </div>
+                                </dl>
                             </div>
                         )}
-                        <input
-                            className={`vin-field${vinTaken ? " vin-field-error" : ""}`}
-                            placeholder="Enter your vehicle identification number"
-                            value={vin}
-                            autoCapitalize="characters"
-                            spellCheck={false}
-                            onChange={(e) => {
-                                const next = e.target.value.replace(/\s+/g, "").toUpperCase();
-                                setVin(next);
-                                setVinTaken(false);
-                                setError("");
-                                setSuccess("");
-                            }}
-                        />
-                        {vinChecking && vin.trim() && (
-                            <p className="vin-check-status">Checking VIN…</p>
-                        )}
-                        {vinTaken && (
-                            <p className="config-error">This VIN is already registered to a vehicle</p>
-                        )}
+                        <label className="field">
+                            <span className="field-label">Vehicle identification number (VIN)</span>
+                            <input
+                                className="input vin-input"
+                                value={vin}
+                                autoCapitalize="characters"
+                                autoComplete="off"
+                                spellCheck={false}
+                                aria-invalid={vinTaken || undefined}
+                                aria-describedby="vin-status"
+                                onChange={(e) => {
+                                    const next = e.target.value.replace(/\s+/g, "").toUpperCase();
+                                    setVin(next);
+                                    setVinTaken(false);
+                                    setError("");
+                                    setSuccess("");
+                                }}
+                            />
+                        </label>
+                        <div id="vin-status" role="status">
+                            {vinChecking && vin.trim() && (
+                                <p className="field-hint">Checking VIN…</p>
+                            )}
+                            {vinTaken && (
+                                <p className="field-error">This VIN is already registered to a vehicle</p>
+                            )}
+                        </div>
                     </div>
                 )}
 
-                <div className="config-actions" ref={actionsRef}>
-                    {step > 0 && (
-                        <button
-                            type="button"
-                            className="config-back-btn"
-                            onClick={goBack}
-                            disabled={submitting}
-                        >
-                            Back
-                        </button>
-                    )}
+                <div className="button-row config-actions">
                     <button
                         type="button"
-                        className="submit-vehicle-btn"
+                        className="button button-primary"
                         disabled={submitting || !canContinue()}
                         onClick={goContinue}
                     >
@@ -497,11 +539,29 @@ export default function VehicleConfigurator({ onVehicleAdded }) {
                             ? (submitting ? "Adding vehicle…" : "Add vehicle")
                             : "Continue"}
                     </button>
+                    {step > 0 && (
+                        <button
+                            type="button"
+                            className="link-chevron link-chevron-back"
+                            onClick={goBack}
+                            disabled={submitting}
+                        >
+                            Back
+                        </button>
+                    )}
                 </div>
 
-                {error && <p className="config-error">{error}</p>}
-                {success && <p className="config-success">{success}</p>}
-            </div>
+                {error && (
+                    <p className="message message-error" role="alert">
+                        {error}
+                    </p>
+                )}
+                {success && (
+                    <p className="message message-success" role="status">
+                        {success}
+                    </p>
+                )}
+            </section>
         </div>
     );
 }

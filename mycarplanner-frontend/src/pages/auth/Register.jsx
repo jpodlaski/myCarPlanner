@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../services/api";
-import "../../components/DashboardLayout.css";
-import "./AuthShell.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
+import AuthLayout from "../../components/AuthLayout";
+import TextField from "../../components/TextField";
 
-// Client self-registration; account must be email-verified before login.
+/** Client self-registration; the email must be verified before signing in. */
 export default function Register() {
     const navigate = useNavigate();
     const [firstName, setFirstName] = useState("");
@@ -40,55 +38,64 @@ export default function Register() {
     };
 
     return (
-        <div className="auth-shell">
-            <ThemeToggle className="theme-toggle-auth" />
-            <div className="auth-shell-panel">
-                <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <Logo />
-                </Link>
-                <h1>Create account</h1>
-
-                <form className="auth-form" onSubmit={register}>
-                    <input
-                        placeholder="First name"
+        <AuthLayout
+            title="Create your account"
+            lede="One account for every Hussarya you own."
+            links={[
+                { to: "/login", label: "Already have an account? Sign in" },
+                { to: "/resend-verification", label: "Resend verification email" },
+                { to: "/", label: "Back to home" },
+            ]}
+        >
+            <form className="form-stack" onSubmit={register}>
+                <div className="form-grid">
+                    <TextField
+                        label="First name"
+                        autoComplete="given-name"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         required
                     />
-                    <input
-                        placeholder="Last name"
+                    <TextField
+                        label="Last name"
+                        autoComplete="family-name"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         required
                     />
-                    <input
-                        placeholder="Email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                    <input
-                        type="password"
-                        placeholder="Password (min. 8 characters)"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={8}
-                    />
-                    <button type="submit" disabled={loading}>
-                        {loading ? "Creating account…" : "Register"}
-                    </button>
-                    {message && <p className="form-success">{message}</p>}
-                    {error && <p className="form-error">{error}</p>}
-                </form>
-
-                <div className="auth-links">
-                    <Link to="/login">Already have an account? Sign in</Link>
-                    <Link to="/resend-verification">Resend verification email</Link>
-                    <Link to="/">Back to home</Link>
                 </div>
-            </div>
-        </div>
+                <TextField
+                    label="Email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                />
+                <TextField
+                    label="Password"
+                    type="password"
+                    autoComplete="new-password"
+                    hint="At least 8 characters."
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                />
+                {message && (
+                    <p className="message message-success" role="status">
+                        {message}
+                    </p>
+                )}
+                {error && (
+                    <p className="message message-error" role="alert">
+                        {error}
+                    </p>
+                )}
+                <button type="submit" className="button button-primary button-block" disabled={loading}>
+                    {loading ? "Creating account…" : "Continue"}
+                </button>
+            </form>
+        </AuthLayout>
     );
 }

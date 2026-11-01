@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-// Flattened booking view for admin history; includes customer email and assigned worker details.
+/** Flattened booking for admin history, including customer email and assigned worker. */
 public class AdminBookingResponse {
 
     private Long id;

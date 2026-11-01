@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 
-// estimatedDropOffTime is required; availabilityNotes is optional (enforced in BookingService).
+/** estimatedDropOffTime is required, availabilityNotes optional (enforced in BookingService). */
 public class CreateBookingRequest {
 
     private static final int MAX_DESCRIPTION_WORDS = 500;

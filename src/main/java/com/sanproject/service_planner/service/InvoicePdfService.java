@@ -6,12 +6,14 @@ import com.sanproject.service_planner.domain.Vehicle;
 import com.sanproject.service_planner.email.CustomerDateTimeFormatter;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -20,131 +22,173 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Branded PDF invoice (completion email + client download).
- * Visual language matches the myCarPlanner email templates: white + #2791F5, logo header.
+ * Visual language matches the web app and HTML emails: white page, #1d1d1f type,
+ * #6e6e73 secondary text, #f5f5f7 rounded panels and hairline #d2d2d7 separators.
  */
 @Service
 public class InvoicePdfService {
 
     private static final String BRAND_NAME = "myCarPlanner";
-    /** Helvetica/WinAnsi cannot render Ł — keep ASCII for PDF Type1 fonts. */
+    private static final String WORKSHOP_NAME = "Hussarya Service";
+    /** Helvetica/WinAnsi cannot render Ł or ź — keep ASCII for PDF Type1 fonts. */
     private static final String WORKSHOP_ADDRESS = "Sportowa 31, Lodz, Poland";
     private static final String WORKSHOP_HOURS = "06:00-20:00";
     private static final String CURRENCY = "EUR";
 
-    private static final Color INK = new Color(0x0a, 0x0c, 0x0e);
-    private static final Color INK_SOFT = new Color(0x14, 0x18, 0x1c);
-    private static final Color HEADER_BG = new Color(0x27, 0x91, 0xf5);
-    private static final Color SNOW = new Color(0xff, 0xff, 0xff);
-    private static final Color MUTED = new Color(0x8a, 0x8e, 0x89);
-    private static final Color ACCENT_BRIGHT = new Color(0x27, 0x91, 0xf5);
-    private static final Color ACCENT_SOFT = new Color(0x93, 0xc5, 0xfd);
-    private static final Color ACCENT_BORDER = new Color(0x27, 0x91, 0xf5);
+    private static final Color TEXT = new Color(0x1d, 0x1d, 0x1f);
+    private static final Color TEXT_SECONDARY = new Color(0x6e, 0x6e, 0x73);
+    private static final Color SEPARATOR = new Color(0xd2, 0xd2, 0xd7);
+    private static final Color PANEL = new Color(0xf5, 0xf5, 0xf7);
     private static final ClassPathResource LOGO =
             new ClassPathResource("email/logo.png");
 
-    private static final float MARGIN_X = 48f;
-    private static final float LABEL_WIDTH = 130f;
+    private static final PDType1Font FONT = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+    private static final PDType1Font FONT_BOLD = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+
+    private static final DateTimeFormatter ISSUE_DATE =
+            DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH);
+
+    private static final float MARGIN = 56f;
+    private static final float PANEL_RADIUS = 12f;
+    private static final float PANEL_PADDING = 20f;
+    private static final int MAX_ISSUE_LINES = 6;
+
+    private final String sellerName;
+    private final String sellerNip;
+    private final BigDecimal vatRate;
+
+    public InvoicePdfService(
+            @Value("${app.invoice.seller-name}") String sellerName,
+            @Value("${app.invoice.seller-nip}") String sellerNip,
+            @Value("${app.invoice.vat-rate}") BigDecimal vatRate) {
+        this.sellerName = sellerName;
+        this.sellerNip = sellerNip;
+        this.vatRate = vatRate;
+    }
 
     public byte[] createInvoicePdf(ServiceBooking booking, Customer customer) {
-        BigDecimal cost = booking.getFinalCost() != null
+        BigDecimal gross = booking.getFinalCost() != null
                 ? booking.getFinalCost()
                 : booking.getEstimatedCost();
-        String costText = cost != null ? cost.toPlainString() : "N/A";
+        VatBreakdown vat = gross != null ? VatBreakdown.fromGross(gross, vatRate) : null;
+        LocalDate issued = booking.getInvoiceIssuedAt() != null
+                ? booking.getInvoiceIssuedAt().toLocalDate()
+                : LocalDate.now();
+        String rateText = vatRate.stripTrailingZeros().toPlainString() + "%";
 
         try (PDDocument doc = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            PDDocumentInformation info = doc.getDocumentInformation();
+            info.setTitle("VAT invoice " + invoiceNumber(booking));
+            info.setAuthor(WORKSHOP_NAME);
+            info.setCreator(BRAND_NAME);
 
             PDPage page = new PDPage(PDRectangle.A4);
             doc.addPage(page);
             PDRectangle box = page.getMediaBox();
             float pageW = box.getWidth();
             float pageH = box.getHeight();
-
-            PDType1Font fontBold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-            PDType1Font font = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+            float contentW = pageW - MARGIN * 2;
+            float right = pageW - MARGIN;
 
             PDImageXObject logo = loadLogo(doc);
 
             try (PDPageContentStream content = new PDPageContentStream(doc, page)) {
-                // Page background
-                fillRect(content, 0, 0, pageW, pageH, INK);
-
-                // Header band (white + blue rule — same as HTML emails / site logo treatment)
-                float headerH = 96f;
-                fillRect(content, 0, pageH - headerH, pageW, headerH, SNOW);
-                content.setLineWidth(3f);
-                strokeLine(content, 0, pageH - headerH, pageW, pageH - headerH, ACCENT_BRIGHT);
-                content.setLineWidth(1f);
+                float top = pageH - MARGIN;
 
                 if (logo != null) {
-                    float logoH = 36f;
-                    float scale = logoH / logo.getHeight();
-                    float logoW = logo.getWidth() * scale;
-                    float logoX = (pageW - logoW) / 2f;
-                    float logoY = pageH - headerH + (headerH - logoH) / 2f;
-                    content.drawImage(logo, logoX, logoY, logoW, logoH);
+                    float logoH = 48f;
+                    float logoW = logo.getWidth() * (logoH / logo.getHeight());
+                    content.drawImage(logo, MARGIN, top - logoH, logoW, logoH);
+                }
+                drawTextRight(content, FONT_BOLD, 10, right, top - 10, WORKSHOP_NAME, TEXT);
+                drawTextRight(content, FONT, 9, right, top - 24, WORKSHOP_ADDRESS, TEXT_SECONDARY);
+                drawTextRight(content, FONT, 9, right, top - 37,
+                        "Open daily " + WORKSHOP_HOURS, TEXT_SECONDARY);
+
+                float y = top - 104f;
+                drawText(content, FONT_BOLD, 32, MARGIN, y, "VAT invoice", TEXT);
+
+                y -= 36f;
+                float colW = contentW / 4f;
+                drawLabelValue(content, MARGIN, y, "Invoice number", invoiceNumber(booking));
+                drawLabelValue(content, MARGIN + colW, y, "Date issued", ISSUE_DATE.format(issued));
+                drawLabelValue(content, MARGIN + colW * 2, y, "Date of service", ISSUE_DATE.format(issued));
+                drawLabelValue(content, MARGIN + colW * 3, y, "Booking", "#" + booking.getId());
+
+                y -= 34f;
+                hairline(content, MARGIN, right, y);
+
+                y -= 28f;
+                float thirdW = contentW / 3f;
+                Vehicle v = booking.getVehicle();
+                String vin = v != null && v.getVin() != null && !v.getVin().isBlank() ? v.getVin() : null;
+                float sellerEnd = drawBlock(content, MARGIN, y, thirdW - 16f, "Seller",
+                        sellerName, WORKSHOP_ADDRESS, "NIP " + sellerNip);
+                float buyerEnd = drawBlock(content, MARGIN + thirdW, y, thirdW - 16f, "Buyer",
+                        booking.getCustomerName(), customer.getEmail());
+                float vehicleEnd = drawBlock(content, MARGIN + thirdW * 2, y, thirdW - 16f, "Vehicle",
+                        booking.getCarModel(), vin != null ? "VIN " + vin : null);
+                y = Math.min(sellerEnd, Math.min(buyerEnd, vehicleEnd)) - 20f;
+
+                List<String[]> details = buildDetailRows(booking);
+                if (!details.isEmpty()) {
+                    y = drawDetailsPanel(content, MARGIN, y, contentW, details) - 32f;
                 }
 
-                float y = pageH - headerH - 36f;
+                drawText(content, FONT, 9, MARGIN, y, "Description", TEXT_SECONDARY);
+                drawTextRight(content, FONT, 9, right, y, "Amount", TEXT_SECONDARY);
+                y -= 10f;
+                hairline(content, MARGIN, right, y);
 
-                // Title + meta
-                y = drawText(content, fontBold, 11, MARGIN_X, y, "INVOICE", ACCENT_SOFT);
-                y -= 6f;
-                y = drawText(content, fontBold, 18, MARGIN_X, y,
-                        "Booking #" + booking.getId(), SNOW);
-                y -= 8f;
-                y = drawText(content, font, 11, MARGIN_X, y,
-                        "Issued " + formatDate(LocalDate.now()), MUTED);
-                y -= 22f;
-
-                // Details card
-                List<String[]> rows = buildDetailRows(booking, customer, costText);
-                float cardTop = y + 14f;
-                float rowsHeight = 28f;
-                for (String[] row : rows) {
-                    int lineCount = wrap(row[1], font, 11, pageW - MARGIN_X * 2 - LABEL_WIDTH - 16).size();
-                    rowsHeight += Math.max(18f, lineCount * 16f + 2f);
-                }
-                float cardBottom = cardTop - rowsHeight;
-                fillRect(content, MARGIN_X - 12f, cardBottom, pageW - (MARGIN_X - 12f) * 2, rowsHeight, INK_SOFT);
-                strokeRect(content, MARGIN_X - 12f, cardBottom, pageW - (MARGIN_X - 12f) * 2, rowsHeight, ACCENT_BORDER);
-
-                y = cardTop - 20f;
-                for (String[] row : rows) {
-                    y = drawDetailRow(content, font, fontBold, y, row[0], row[1], pageW);
+                List<String> services = booking.getServiceTypes() != null
+                        ? booking.getServiceTypes()
+                        : List.of();
+                if (services.isEmpty()) {
+                    y = drawLineItem(content, MARGIN, right, y, "Workshop service", "");
+                } else {
+                    for (String service : services) {
+                        y = drawLineItem(content, MARGIN, right, y, service, "Included");
+                    }
                 }
 
-                y = cardBottom - 28f;
+                y -= 26f;
+                drawText(content, FONT, 11, MARGIN, y, "Net amount", TEXT_SECONDARY);
+                drawTextRight(content, FONT, 11, right, y, money(vat == null ? null : vat.net()), TEXT);
+                y -= 18f;
+                drawText(content, FONT, 11, MARGIN, y, "VAT " + rateText, TEXT_SECONDARY);
+                drawTextRight(content, FONT, 11, right, y, money(vat == null ? null : vat.tax()), TEXT);
+                y -= 12f;
+                hairline(content, MARGIN, right, y);
 
-                // Total highlight
-                float totalH = 48f;
-                float totalBottom = y - totalH;
-                fillRect(content, MARGIN_X - 12f, totalBottom, pageW - (MARGIN_X - 12f) * 2, totalH, HEADER_BG);
-                strokeRect(content, MARGIN_X - 12f, totalBottom, pageW - (MARGIN_X - 12f) * 2, totalH, ACCENT_BORDER);
-                drawText(content, font, 11, MARGIN_X, totalBottom + 28f, "TOTAL DUE", ACCENT_SOFT);
-                drawText(content, fontBold, 16, MARGIN_X, totalBottom + 12f,
-                        costText + " " + CURRENCY, SNOW);
+                y -= 26f;
+                drawText(content, FONT_BOLD, 13, MARGIN, y, "Total due", TEXT);
+                drawTextRight(content, FONT_BOLD, 20, right, y - 2f, money(gross), TEXT);
+                y -= 18f;
+                drawText(content, FONT, 9, MARGIN, y,
+                        "All amounts in " + CURRENCY + ". The total includes " + rateText + " VAT.",
+                        TEXT_SECONDARY);
 
-                // Footer
-                float footerH = 88f;
-                fillRect(content, 0, 0, pageW, footerH, HEADER_BG);
-                strokeLine(content, 0, footerH, pageW, footerH, ACCENT_BORDER);
-                float fy = footerH - 22f;
-                fy = drawText(content, font, 9, MARGIN_X, fy, "SERVICE LOCATION", ACCENT_SOFT);
-                fy -= 4f;
-                fy = drawText(content, fontBold, 11, MARGIN_X, fy, WORKSHOP_ADDRESS, SNOW);
-                fy -= 8f;
-                fy = drawText(content, font, 10, MARGIN_X, fy,
-                        "Pickup during workshop hours, " + WORKSHOP_HOURS + ".", MUTED);
-                fy -= 8f;
-                drawText(content, font, 10, MARGIN_X, fy, BRAND_NAME, SNOW);
+                float footerY = MARGIN + 30f;
+                hairline(content, MARGIN, right, footerY + 16f);
+                drawText(content, FONT, 9, MARGIN, footerY,
+                        "Thank you for choosing " + WORKSHOP_NAME + ". Your vehicle can be collected during "
+                                + "workshop hours, " + WORKSHOP_HOURS + ".",
+                        TEXT_SECONDARY);
+                drawText(content, FONT, 9, MARGIN, footerY - 14f,
+                        BRAND_NAME + "  |  " + WORKSHOP_ADDRESS, TEXT_SECONDARY);
             }
 
             doc.save(out);
@@ -154,48 +198,118 @@ public class InvoicePdfService {
         }
     }
 
-    private List<String[]> buildDetailRows(ServiceBooking booking, Customer customer, String costText) {
-        List<String[]> rows = new ArrayList<>();
-        rows.add(new String[]{"Customer", safe(booking.getCustomerName())});
-        rows.add(new String[]{"Email", safe(customer.getEmail())});
+    private String invoiceNumber(ServiceBooking booking) {
+        if (booking.getInvoiceNumber() != null) {
+            return booking.getInvoiceNumber();
+        }
+        return "Pending (booking #" + booking.getId() + ")";
+    }
 
-        Vehicle v = booking.getVehicle();
-        rows.add(new String[]{"Vehicle", safe(booking.getCarModel())});
-        if (v != null && v.getVin() != null && !v.getVin().isBlank()) {
-            rows.add(new String[]{"VIN", pdfSafe(v.getVin())});
+    private static String money(BigDecimal amount) {
+        return amount != null ? amount.setScale(2, RoundingMode.HALF_UP).toPlainString() + " " + CURRENCY : "N/A";
+    }
+
+    /** Workshop prices are VAT-inclusive, so net and tax are derived from the gross total. */
+    record VatBreakdown(BigDecimal net, BigDecimal tax, BigDecimal gross) {
+
+        static VatBreakdown fromGross(BigDecimal gross, BigDecimal ratePercent) {
+            BigDecimal grossRounded = gross.setScale(2, RoundingMode.HALF_UP);
+            BigDecimal divisor = BigDecimal.ONE.add(ratePercent.movePointLeft(2));
+            BigDecimal net = grossRounded.divide(divisor, 2, RoundingMode.HALF_UP);
+            return new VatBreakdown(net, grossRounded.subtract(net), grossRounded);
         }
-        if (booking.getCustomerDescription() != null && !booking.getCustomerDescription().isBlank()) {
-            rows.add(new String[]{"Issue", pdfSafe(booking.getCustomerDescription())});
-        }
-        String services = formatServiceTypes(booking.getServiceTypes());
-        if (!services.isBlank()) {
-            rows.add(new String[]{"Services", services});
-        }
+    }
+
+    private List<String[]> buildDetailRows(ServiceBooking booking) {
+        List<String[]> rows = new ArrayList<>();
         if (booking.getScheduledDateTime() != null) {
             rows.add(new String[]{"Appointment", formatDateTime(booking.getScheduledDateTime())});
         }
-        rows.add(new String[]{"Final cost", costText + " " + CURRENCY});
+        if (booking.getCustomerDescription() != null && !booking.getCustomerDescription().isBlank()) {
+            rows.add(new String[]{"You reported", booking.getCustomerDescription()});
+        }
         return rows;
     }
 
-    private float drawDetailRow(PDPageContentStream content,
-                                PDType1Font font,
-                                PDType1Font fontBold,
-                                float y,
-                                String label,
-                                String value,
-                                float pageW) throws IOException {
-        float valueX = MARGIN_X + LABEL_WIDTH;
-        float maxValueWidth = pageW - valueX - MARGIN_X;
-        List<String> lines = wrap(value, font, 11, maxValueWidth);
+    private void drawLabelValue(PDPageContentStream content, float x, float y, String label, String value)
+            throws IOException {
+        drawText(content, FONT, 9, x, y, label, TEXT_SECONDARY);
+        drawText(content, FONT, 11, x, y - 15f, value, TEXT);
+    }
 
-        drawText(content, font, 9, MARGIN_X, y, label.toUpperCase(), ACCENT_SOFT);
-        float lineY = y;
-        for (String line : lines) {
-            drawText(content, fontBold, 11, valueX, lineY, line, SNOW);
-            lineY -= 16f;
+    /** Label + up to two lines; returns the baseline below the block. */
+    private float drawBlock(PDPageContentStream content, float x, float y, float width,
+                            String label, String primary, String... secondary) throws IOException {
+        drawText(content, FONT, 9, x, y, label, TEXT_SECONDARY);
+        float lineY = y - 16f;
+        for (String line : wrap(primary, FONT_BOLD, 11, width)) {
+            drawText(content, FONT_BOLD, 11, x, lineY, line, TEXT);
+            lineY -= 15f;
         }
-        return y - Math.max(18f, lines.size() * 16f + 2f);
+        for (String text : secondary) {
+            if (text == null || text.isBlank()) {
+                continue;
+            }
+            for (String line : wrap(text, FONT, 10, width)) {
+                drawText(content, FONT, 10, x, lineY, line, TEXT_SECONDARY);
+                lineY -= 14f;
+            }
+        }
+        return lineY;
+    }
+
+    /** Grey rounded panel with stacked label/value rows; returns its bottom edge. */
+    private float drawDetailsPanel(PDPageContentStream content, float x, float top, float width,
+                                   List<String[]> rows) throws IOException {
+        float innerW = width - PANEL_PADDING * 2;
+        List<List<String>> wrapped = new ArrayList<>();
+        float height = PANEL_PADDING * 2;
+        for (int i = 0; i < rows.size(); i++) {
+            List<String> lines = wrap(rows.get(i)[1], FONT, 11, innerW);
+            if (lines.size() > MAX_ISSUE_LINES) {
+                lines = new ArrayList<>(lines.subList(0, MAX_ISSUE_LINES));
+                lines.set(MAX_ISSUE_LINES - 1, lines.get(MAX_ISSUE_LINES - 1) + " ...");
+            }
+            wrapped.add(lines);
+            height += 14f + lines.size() * 15f;
+            if (i > 0) {
+                height += 20f;
+            }
+        }
+
+        float bottom = top - height;
+        fillRoundRect(content, x, bottom, width, height, PANEL_RADIUS, PANEL);
+
+        float y = top - PANEL_PADDING - 9f;
+        for (int i = 0; i < rows.size(); i++) {
+            if (i > 0) {
+                y -= 4f;
+                hairline(content, x + PANEL_PADDING, x + width - PANEL_PADDING, y + 10f);
+                y -= 16f;
+            }
+            drawText(content, FONT, 9, x + PANEL_PADDING, y, rows.get(i)[0], TEXT_SECONDARY);
+            y -= 15f;
+            for (String line : wrapped.get(i)) {
+                drawText(content, FONT, 11, x + PANEL_PADDING, y, line, TEXT);
+                y -= 15f;
+            }
+        }
+        return bottom;
+    }
+
+    private float drawLineItem(PDPageContentStream content, float left, float right, float y,
+                               String description, String amount) throws IOException {
+        float rowY = y - 20f;
+        float amountW = amount.isEmpty() ? 0f : textWidth(FONT, 11, amount) + 24f;
+        List<String> lines = wrap(description, FONT, 11, right - left - amountW);
+        drawTextRight(content, FONT, 11, right, rowY, amount, TEXT_SECONDARY);
+        for (String line : lines) {
+            drawText(content, FONT, 11, left, rowY, line, TEXT);
+            rowY -= 15f;
+        }
+        float rowBottom = rowY + 15f - 12f;
+        hairline(content, left, right, rowBottom);
+        return rowBottom;
     }
 
     private PDImageXObject loadLogo(PDDocument doc) {
@@ -206,44 +320,51 @@ public class InvoicePdfService {
         }
     }
 
-    private void fillRect(PDPageContentStream content, float x, float y, float w, float h, Color color)
-            throws IOException {
+    private void hairline(PDPageContentStream content, float x1, float x2, float y) throws IOException {
+        content.setStrokingColor(SEPARATOR);
+        content.setLineWidth(0.75f);
+        content.moveTo(x1, y);
+        content.lineTo(x2, y);
+        content.stroke();
+    }
+
+    private void fillRoundRect(PDPageContentStream content, float x, float y, float w, float h,
+                               float r, Color color) throws IOException {
+        float k = 0.5523f * r;
         content.setNonStrokingColor(color);
-        content.addRect(x, y, w, h);
+        content.moveTo(x + r, y);
+        content.lineTo(x + w - r, y);
+        content.curveTo(x + w - r + k, y, x + w, y + r - k, x + w, y + r);
+        content.lineTo(x + w, y + h - r);
+        content.curveTo(x + w, y + h - r + k, x + w - r + k, y + h, x + w - r, y + h);
+        content.lineTo(x + r, y + h);
+        content.curveTo(x + r - k, y + h, x, y + h - r + k, x, y + h - r);
+        content.lineTo(x, y + r);
+        content.curveTo(x, y + r - k, x + r - k, y, x + r, y);
+        content.closePath();
         content.fill();
     }
 
-    private void strokeRect(PDPageContentStream content, float x, float y, float w, float h, Color color)
-            throws IOException {
-        content.setStrokingColor(color);
-        content.setLineWidth(1f);
-        content.addRect(x, y, w, h);
-        content.stroke();
-    }
-
-    private void strokeLine(PDPageContentStream content, float x1, float y1, float x2, float y2, Color color)
-            throws IOException {
-        content.setStrokingColor(color);
-        content.setLineWidth(1f);
-        content.moveTo(x1, y1);
-        content.lineTo(x2, y2);
-        content.stroke();
-    }
-
-    private float drawText(PDPageContentStream content,
-                           PDType1Font font,
-                           float size,
-                           float x,
-                           float y,
-                           String text,
-                           Color color) throws IOException {
+    private void drawText(PDPageContentStream content, PDType1Font font, float size,
+                          float x, float y, String text, Color color) throws IOException {
         content.setNonStrokingColor(color);
         content.beginText();
         content.setFont(font, size);
         content.newLineAtOffset(x, y);
         content.showText(pdfSafe(text));
         content.endText();
-        return y - (size + 4f);
+    }
+
+    private void drawTextRight(PDPageContentStream content, PDType1Font font, float size,
+                               float right, float y, String text, Color color) throws IOException {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        drawText(content, font, size, right - textWidth(font, size, text), y, text, color);
+    }
+
+    private float textWidth(PDType1Font font, float size, String text) throws IOException {
+        return font.getStringWidth(pdfSafe(text)) / 1000f * size;
     }
 
     private List<String> wrap(String text, PDType1Font font, float fontSize, float maxWidth)
@@ -280,29 +401,39 @@ public class InvoicePdfService {
         return CustomerDateTimeFormatter.format(dateTime);
     }
 
-    private String formatDate(LocalDate date) {
-        return date.toString();
-    }
-
-    private String safe(String s) {
-        return pdfSafe(s);
-    }
-
+    /**
+     * Keeps characters the WinAnsi-encoded Helvetica can show; others lose their
+     * diacritics (e.g. "Łęcki" becomes "Lecki") or fall back to '?'.
+     */
     private String pdfSafe(String text) {
         if (text == null) {
             return "";
         }
         StringBuilder sanitized = new StringBuilder(text.length());
         for (char ch : text.toCharArray()) {
-            sanitized.append(ch <= 255 ? ch : '?');
+            if (Character.isWhitespace(ch)) {
+                sanitized.append(' ');
+            } else if (canEncode(ch)) {
+                sanitized.append(ch);
+            } else if (ch == 'Ł') {
+                sanitized.append('L');
+            } else if (ch == 'ł') {
+                sanitized.append('l');
+            } else {
+                String base = Normalizer.normalize(String.valueOf(ch), Normalizer.Form.NFD)
+                        .replaceAll("\\p{M}", "");
+                sanitized.append(base.length() == 1 && canEncode(base.charAt(0)) ? base : "?");
+            }
         }
         return sanitized.toString();
     }
 
-    private String formatServiceTypes(List<String> serviceTypes) {
-        if (serviceTypes == null || serviceTypes.isEmpty()) {
-            return "";
+    private boolean canEncode(char ch) {
+        try {
+            FONT.encode(String.valueOf(ch));
+            return true;
+        } catch (IOException | IllegalArgumentException ex) {
+            return false;
         }
-        return String.join(", ", serviceTypes);
     }
 }

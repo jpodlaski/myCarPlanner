@@ -10,10 +10,8 @@ import org.springframework.web.client.RestClientException;
 import java.util.Optional;
 
 /**
- * HTTP client for the separate Clojure email-renderer service.
- * Keeping HTML templates out of Java keeps the API focused on business logic and lets us
- * change email copy without redeploying Spring. Failures return Optional.empty() so a down
- * renderer does not fail the booking transaction that already succeeded.
+ * HTTP client for the Clojure email-renderer service. Failures return Optional.empty() so a
+ * down renderer cannot fail a booking transaction that already succeeded.
  */
 @Component
 public class EmailRendererClient {

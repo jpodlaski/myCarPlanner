@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../../services/api";
-import "../../components/DashboardLayout.css";
-import "./AuthShell.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
+import AuthLayout from "../../components/AuthLayout";
+import TextField from "../../components/TextField";
 
 export default function ResetPassword() {
     const [searchParams] = useSearchParams();
@@ -43,45 +41,48 @@ export default function ResetPassword() {
     };
 
     return (
-        <div className="auth-shell">
-            <ThemeToggle className="theme-toggle-auth" />
-            <div className="auth-shell-panel">
-                <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <Logo />
-                </Link>
-                <h1>Reset password</h1>
-                <p className="auth-shell-lede">Choose a new password (at least 8 characters).</p>
-
-                <form className="auth-form" onSubmit={submit}>
-                    <input
-                        type="password"
-                        placeholder="New password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                        minLength={8}
-                        autoComplete="new-password"
-                    />
-                    <input
-                        type="password"
-                        placeholder="Confirm new password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                        minLength={8}
-                        autoComplete="new-password"
-                    />
-                    <button type="submit" disabled={loading || !token}>
-                        {loading ? "Updating…" : "Update password"}
-                    </button>
-                    {message && <p className="form-success">{message}</p>}
-                    {error && <p className="form-error">{error}</p>}
-                </form>
-
-                <div className="auth-links">
-                    <Link to="/login">Back to sign in</Link>
-                </div>
-            </div>
-        </div>
+        <AuthLayout
+            title="Reset password"
+            lede="Choose a new password (at least 8 characters)."
+            links={[{ to: "/login", label: "Back to sign in" }]}
+        >
+            <form className="form-stack" onSubmit={submit}>
+                <TextField
+                    label="New password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                />
+                <TextField
+                    label="Confirm new password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                />
+                {message && (
+                    <p className="message message-success" role="status">
+                        {message}
+                    </p>
+                )}
+                {error && (
+                    <p className="message message-error" role="alert">
+                        {error}
+                    </p>
+                )}
+                <button
+                    type="submit"
+                    className="button button-primary button-block"
+                    disabled={loading || !token}
+                >
+                    {loading ? "Updating…" : "Update password"}
+                </button>
+            </form>
+        </AuthLayout>
     );
 }

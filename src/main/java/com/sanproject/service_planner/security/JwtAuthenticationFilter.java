@@ -17,10 +17,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Servlet filter that runs on every HTTP request before controllers.
- * If the Authorization header carries a valid Bearer JWT, it places an AuthUser into
- * Spring Security's SecurityContext so controllers can call AuthSupport.requireClient() etc.
- * Client JWTs are rejected once the customer row is gone (account deletion).
+ * Turns a valid Bearer JWT into an AuthUser in the SecurityContext. Client tokens are rejected
+ * once the customer row is gone (account deletion).
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {

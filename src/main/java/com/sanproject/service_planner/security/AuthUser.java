@@ -8,9 +8,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Lightweight representation of the signed-in user (id + role + display name).
- * Implements Spring's UserDetails so it can sit in SecurityContext as the Authentication principal.
- * Password is null here — authentication already happened when the JWT was issued.
+ * Signed-in user (id, role, display name) used as the SecurityContext principal.
+ * The password is null: authentication already happened when the JWT was issued.
  */
 public class AuthUser implements UserDetails {
 

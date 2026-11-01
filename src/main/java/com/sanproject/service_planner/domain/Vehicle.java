@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Customer-owned Aston Martin vehicle.
+ * Customer-owned Hussarya vehicle.
  * Spec fields (engine, body style, …) are copied from the JSON catalog when the car is added
  * so later catalog edits do not rewrite historical bookings.
  * removedFromAccount is a soft delete: the row stays for booking history, but the client UI hides it.
@@ -46,7 +46,6 @@ public class Vehicle {
     @JoinColumn(name = "customer_id")
     private Customer customer;
 
-    // True when the customer removes the car from their account (row is kept for booking history).
     private boolean removedFromAccount;
 
     public Vehicle() {

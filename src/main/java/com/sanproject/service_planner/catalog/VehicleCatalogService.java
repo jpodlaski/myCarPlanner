@@ -24,7 +24,6 @@ public class VehicleCatalogService {
         this.objectMapper = objectMapper;
     }
 
-    // Build an in-memory index of configurationId → resolved vehicle attributes.
     @PostConstruct
     void loadCatalog() throws IOException {
         try (InputStream input = new ClassPathResource("hussarya-catalog.json").getInputStream()) {

@@ -5,6 +5,7 @@ import com.sanproject.service_planner.domain.EmployeeRole;
 import com.sanproject.service_planner.domain.Vehicle;
 import com.sanproject.service_planner.domain.Worker;
 import com.sanproject.service_planner.repository.CustomerRepository;
+import com.sanproject.service_planner.repository.ServiceBookingRepository;
 import com.sanproject.service_planner.repository.VehicleRepository;
 import com.sanproject.service_planner.repository.WorkerRepository;
 import com.sanproject.service_planner.security.JwtService;
@@ -12,6 +13,9 @@ import com.sanproject.service_planner.security.PasswordService;
 import com.sanproject.service_planner.service.BookingNotificationService;
 import com.sanproject.service_planner.service.CustomerNotificationService;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
@@ -61,6 +66,9 @@ class BookingLifecycleTest {
 
     @Autowired
     private VehicleRepository vehicleRepository;
+
+    @Autowired
+    private ServiceBookingRepository bookingRepository;
 
     @Autowired
     private WorkerRepository workerRepository;
@@ -185,6 +193,25 @@ class BookingLifecycleTest {
         mockMvc.perform(get("/customers/me/bookings").header("Authorization", clientAuth()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == " + bookingId + ")].status").value(hasItem("COMPLETED")));
+
+        var completed = bookingRepository.findById(bookingId).orElseThrow();
+        assertThat(completed.getInvoiceNumber()).matches("FV/\\d{4}/\\d{6}");
+        assertThat(completed.getInvoiceIssuedAt()).isNotNull();
+
+        byte[] pdf = mockMvc.perform(get("/bookings/{id}/invoice", bookingId)
+                        .header("Authorization", clientAuth()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        String text;
+        try (PDDocument doc = Loader.loadPDF(pdf)) {
+            text = new PDFTextStripper().getText(doc);
+        }
+        assertThat(text)
+                .contains(completed.getInvoiceNumber())
+                .contains("NIP 123-456-32-18")
+                .contains("305.28 EUR")
+                .contains("70.22 EUR")
+                .contains("375.50 EUR");
     }
 
     @Test

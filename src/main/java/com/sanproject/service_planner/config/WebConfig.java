@@ -10,9 +10,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import java.util.List;
 
 /**
- * CORS for local development: the React Vite app (port 5173) calls the API (port 8080).
- * Browsers block cross-origin requests unless the API explicitly allows the frontend origin
- * and the Authorization header used for JWTs.
+ * CORS for local development: lets the Vite app on port 5173 call the API on port 8080
+ * with an Authorization header.
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {

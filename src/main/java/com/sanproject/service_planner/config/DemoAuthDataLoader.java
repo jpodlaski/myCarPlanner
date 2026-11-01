@@ -9,8 +9,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 /**
- * Seeds demo admin/admin on first empty DB only — convenience for local docker-compose demos.
- * Would be gated behind a "dev" profile (or removed) before a real production deploy.
+ * Seeds a demo admin (admin/admin) when no admin exists, for local docker-compose demos.
+ * Gate behind a dev profile or remove before a production deploy.
  */
 @Component
 public class DemoAuthDataLoader implements CommandLineRunner {
@@ -28,7 +28,6 @@ public class DemoAuthDataLoader implements CommandLineRunner {
         seedInitialAdmins();
     }
 
-    // Seeds a single demo admin only when the database has no admin rows yet.
     private void seedInitialAdmins() {
         if (adminRepository.count() > 0) {
             return;

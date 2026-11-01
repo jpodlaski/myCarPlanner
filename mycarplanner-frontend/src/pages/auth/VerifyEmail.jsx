@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../../services/api";
-import "../../components/DashboardLayout.css";
-import "./AuthShell.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
+import AuthLayout from "../../components/AuthLayout";
 
 export default function VerifyEmail() {
     const [searchParams] = useSearchParams();
@@ -44,21 +41,22 @@ export default function VerifyEmail() {
     }, [token]);
 
     return (
-        <div className="auth-shell">
-            <ThemeToggle className="theme-toggle-auth" />
-            <div className="auth-shell-panel">
-                <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <Logo />
-                </Link>
-                <h1>Verify email</h1>
-                {loading && <p className="auth-shell-lede">Verifying your email…</p>}
-                {message && <p className="form-success">{message}</p>}
-                {error && <p className="form-error">{error}</p>}
-                <div className="auth-links">
-                    <Link to="/login">Sign in</Link>
-                    <Link to="/resend-verification">Resend verification</Link>
-                </div>
+        <AuthLayout
+            title="Verify email"
+            links={[
+                { to: "/login", label: "Sign in" },
+                { to: "/resend-verification", label: "Resend verification" },
+            ]}
+        >
+            <div role="status">
+                {loading && <p className="message message-info">Verifying your email…</p>}
+                {message && <p className="message message-success">{message}</p>}
             </div>
-        </div>
+            {error && (
+                <p className="message message-error" role="alert">
+                    {error}
+                </p>
+            )}
+        </AuthLayout>
     );
 }

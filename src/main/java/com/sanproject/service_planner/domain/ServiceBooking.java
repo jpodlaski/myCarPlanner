@@ -74,6 +74,11 @@ public class ServiceBooking {
     @Enumerated(EnumType.STRING)
     private CancelledBy cancelledBy;
 
+    /** Set once, when the booking is completed (e.g. "FV/2026/000042"). */
+    private String invoiceNumber;
+
+    private LocalDateTime invoiceIssuedAt;
+
     public ServiceBooking() {
     }
 
@@ -195,5 +200,21 @@ public class ServiceBooking {
 
     public void setCancelledBy(CancelledBy cancelledBy) {
         this.cancelledBy = cancelledBy;
+    }
+
+    public String getInvoiceNumber() {
+        return invoiceNumber;
+    }
+
+    public void setInvoiceNumber(String invoiceNumber) {
+        this.invoiceNumber = invoiceNumber;
+    }
+
+    public LocalDateTime getInvoiceIssuedAt() {
+        return invoiceIssuedAt;
+    }
+
+    public void setInvoiceIssuedAt(LocalDateTime invoiceIssuedAt) {
+        this.invoiceIssuedAt = invoiceIssuedAt;
     }
 }

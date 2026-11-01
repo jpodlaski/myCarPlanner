@@ -1,9 +1,8 @@
 package com.sanproject.service_planner.domain;
 
 /**
- * Staff roles used for authorization. Names are stored as strings in JWT claims and localStorage,
- * so they must stay in sync with the frontend constants/roles.js.
- * Management (ADMIN/CEO/COO) ≠ workshop staff (mechanics / apprentice / consultant).
+ * Staff roles. Names travel as strings in JWT claims and localStorage, so they must match
+ * mycarplanner-frontend/src/constants/roles.js.
  */
 public enum EmployeeRole {
     ADMIN,
@@ -13,12 +12,12 @@ public enum EmployeeRole {
     MECHANIC,
     APPRENTICE_MECHANIC;
 
-    // Admin, CEO, and COO can add, update roles, and delete workers.
+    /** Management: may create, re-role and delete workers. */
     public boolean canManageWorkers() {
         return this == ADMIN || this == CEO || this == COO;
     }
 
-    // Roles that use the employee dashboard (consultant intake + workshop floor).
+    /** Roles that use the employee dashboard (consultant intake and workshop floor). */
     public boolean isWorkshopStaff() {
         return isConsultant() || isTechnician();
     }
@@ -33,7 +32,7 @@ public enum EmployeeRole {
         return this == MECHANIC || this == APPRENTICE_MECHANIC;
     }
 
-    // ADMIN is reserved for back-office accounts, not workshop staff records.
+    /** ADMIN is reserved for back-office accounts, never for worker records. */
     public boolean isAssignableToWorker() {
         return this != ADMIN;
     }

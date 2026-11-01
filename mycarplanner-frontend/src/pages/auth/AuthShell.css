@@ -1,72 +1,67 @@
-/* Shared auth panel for login / register / password flows. */
+/* Account panel for sign-in, registration and recovery pages. */
 
-.auth-shell {
-  position: relative;
-  min-height: 100svh;
-  display: grid;
-  place-items: center;
-  padding: 2rem 1.25rem;
-  background: var(--bg);
-  animation: auth-fade 0.55s ease-out both;
+.auth-main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: clamp(2.5rem, 7vw, 5rem) var(--gutter) 5rem;
 }
 
-.auth-shell-panel {
-  width: min(100%, 26rem);
+.auth-panel {
+  width: min(100%, 30rem);
+  text-align: center;
+  animation: auth-rise 0.7s var(--ease) both;
+}
+
+.auth-logo {
+  width: 7.5rem;
+  margin: 0 auto 1.75rem;
+}
+
+.auth-title {
+  font-size: clamp(2rem, 5vw, 2.5rem);
+  line-height: 1.1;
+}
+
+.auth-lede {
+  max-width: 24rem;
+  margin: 0.75rem auto 0;
+  color: var(--text-secondary);
+  font-size: 1.0625rem;
+}
+
+.auth-body {
+  margin-top: 2rem;
   text-align: left;
 }
 
-.auth-shell .logo {
+.auth-body > .message {
+  text-align: left;
+}
+
+.auth-body .button-primary {
+  margin-top: 0.5rem;
+}
+
+.auth-links {
   display: flex;
-  justify-content: center;
-  margin: 0 auto 1.75rem;
-  text-decoration: none;
-  line-height: 0;
-  transition: opacity 0.25s ease;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 2rem 0 0;
+  padding: 1.5rem 0 0;
+  border-top: 1px solid var(--separator);
+  list-style: none;
+  font-size: 0.9375rem;
 }
 
-.auth-shell .logo:hover {
-  opacity: 0.88;
-}
-
-.auth-shell .logo img {
-  display: block;
-  height: clamp(2rem, 6.5vw, 2.75rem);
-  width: auto;
-  max-width: min(16rem, 92vw);
-  object-fit: contain;
-}
-
-.auth-shell h1 {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text);
-}
-
-.auth-shell-lede {
-  margin: 0.55rem 0 0;
-  color: var(--text);
-}
-
-.auth-shell .auth-form {
-  margin: 1.75rem 0 0;
-  max-width: none;
-}
-
-.auth-shell .auth-links {
-  margin-top: 1.25rem;
-}
-
-@keyframes auth-fade {
+@keyframes auth-rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }

@@ -14,7 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
-// Customer listing (management) and self-lookup; clients register via /auth/register.
+/** Customer listing for management and self-lookup; clients sign up via /auth/register. */
 @RestController
 @RequestMapping("/customers")
 public class CustomerController {

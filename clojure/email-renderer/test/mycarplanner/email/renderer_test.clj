@@ -27,8 +27,10 @@
       (is (str/includes? (:textBody result) "To be confirmed by the workshop"))
       (is (not (str/includes? (:textBody result) "Services:")))
       (is (str/includes? (:htmlBody result) "data:image/png;base64,"))
-      (is (str/includes? (:htmlBody result) "#2791f5"))
-      (is (str/includes? (:htmlBody result) "alt=\"myCarPlanner\""))
+      (is (str/includes? (:htmlBody result) "#f5f5f7"))
+      (is (str/includes? (:htmlBody result) "<h1"))
+      (is (str/includes? (:htmlBody result) "Booking #42"))
+      (is (str/includes? (:htmlBody result) "alt=\"Hussarya\""))
       (is (str/includes? (:htmlBody result) "#ffffff"))
       (is (not (str/includes? (:htmlBody result) "#b8bbb6")))
       (is (not (str/includes? (:htmlBody result) "#00393d")))
@@ -74,7 +76,7 @@
                    :finalCost "375.50"
                    :currency "EUR"
                    :bookingId 42})]
-      (is (str/includes? (:textBody result) "Previous status: IN PROGRESS"))
+      (is (str/includes? (:textBody result) "Previous status: In progress"))
       (is (str/includes? (:textBody result) "Services: Brake inspection"))
       (is (str/includes? (:textBody result) "Final cost: 375.50 EUR"))
       (is (not (str/includes? (:textBody result) "IN_PROGRESS"))))))

@@ -2,7 +2,7 @@ package com.sanproject.service_planner.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
-// Workshop declines an unclaimed booking; actor comes from the JWT.
+/** Workshop declines an unclaimed booking; the actor comes from the JWT. */
 public class RejectBookingRequest {
 
     @NotBlank(message = "Reason is required")

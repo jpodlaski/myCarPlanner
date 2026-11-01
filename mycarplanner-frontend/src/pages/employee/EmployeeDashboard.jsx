@@ -1,33 +1,45 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ChangePasswordForm from "../../components/ChangePasswordForm";
-import { api } from "../../services/api";
+import AppShell from "../../components/AppShell";
+import DetailList from "../../components/DetailList";
+import ExpandableRow from "../../components/ExpandableRow";
+import PasswordCard from "../../components/PasswordCard";
+import StatusBadge from "../../components/StatusBadge";
 import { isConsultant, isTechnician } from "../../constants/roles";
+import { useFocusOnChange } from "../../hooks/useFocusOnChange";
+import { api } from "../../services/api";
 import { clearSession, getSession } from "../../services/auth";
 import {
     formatCustomerDateTime,
     hasCustomerAvailability,
     toDatetimeLocalValue,
 } from "../../utils/dateTime";
-import "../../components/DashboardLayout.css";
-import "../client/ClientDashboard.css";
+import { formatEuro, formatStatus } from "../../utils/format";
 import "./EmployeeDashboard.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
 
 function sectionLabels(consultant) {
     return {
         available: consultant ? "Incoming requests" : "Available jobs",
         assignments: consultant ? "Workshop" : "My assignments",
         archive: "Archive",
-        account: "Account management",
+        account: "Account",
     };
 }
 
-function formatStatus(status) {
-    if (!status) return "";
-    return String(status).replaceAll("_", " ");
+function sectionLedes(consultant) {
+    return {
+        available: consultant
+            ? "New service requests waiting for an appointment."
+            : "Confirmed bookings ready for a technician to claim.",
+        assignments: consultant
+            ? "Accepted bookings waiting for, or with, a technician."
+            : "Jobs you are working on now.",
+        archive: "Completed and cancelled bookings.",
+        account: "Sign-in and account settings.",
+    };
 }
+
+const WORK_PLAN_SAVED = "Work planned updated.";
 
 function bookingVin(booking) {
     return booking.vehicle?.vin ?? booking.vin ?? null;
@@ -76,19 +88,45 @@ function bookingMatchesQuery(booking, query) {
     return haystack.includes(q);
 }
 
+function joinMeta(parts) {
+    return parts.filter(Boolean).join(" · ");
+}
+
+function CapacityStatus({ capacity }) {
+    let text;
+    let tone = "";
+    if (!capacity) {
+        text = "Checking mechanic availability…";
+    } else if (capacity.error) {
+        text = "Could not check capacity. Try again.";
+        tone = " inline-status-error";
+    } else if (capacity.available) {
+        text = `Mechanic free at this time — ${capacity.remainingSlots} of ${capacity.technicianCount} available (${capacity.bookedCount} still on earlier open jobs).`;
+        tone = " inline-status-ok";
+    } else {
+        text = `No mechanic free at this time (${capacity.bookedCount}/${capacity.technicianCount} busy on open jobs). Call the client to discuss another appointment.`;
+        tone = " inline-status-error";
+    }
+    return (
+        <p className={`inline-status${tone}`} role="status">
+            {text}
+        </p>
+    );
+}
+
 /**
  * Workshop dashboard: consultants accept/schedule requests; technicians claim and complete work.
  */
 export default function EmployeeDashboard() {
     const navigate = useNavigate();
     const session = getSession();
-    const menuRef = useRef(null);
     const consultant = isConsultant(session?.role);
     const technician = isTechnician(session?.role);
     const sections = sectionLabels(consultant);
+    const ledes = sectionLedes(consultant);
 
     const [section, setSection] = useState("available");
-    const [menuOpen, setMenuOpen] = useState(false);
+    const headingRef = useFocusOnChange(section);
     const [showPasswordForm, setShowPasswordForm] = useState(false);
 
     const [available, setAvailable] = useState([]);
@@ -257,24 +295,6 @@ export default function EmployeeDashboard() {
         });
     }, [assigned]);
 
-    useEffect(() => {
-        if (!menuOpen) return undefined;
-        const onPointerDown = (event) => {
-            if (menuRef.current && !menuRef.current.contains(event.target)) {
-                setMenuOpen(false);
-            }
-        };
-        const onKeyDown = (event) => {
-            if (event.key === "Escape") setMenuOpen(false);
-        };
-        document.addEventListener("pointerdown", onPointerDown);
-        document.addEventListener("keydown", onKeyDown);
-        return () => {
-            document.removeEventListener("pointerdown", onPointerDown);
-            document.removeEventListener("keydown", onKeyDown);
-        };
-    }, [menuOpen]);
-
     const logout = () => {
         clearSession();
         navigate("/employee-login");
@@ -282,7 +302,6 @@ export default function EmployeeDashboard() {
 
     const selectSection = (next) => {
         setSection(next);
-        setMenuOpen(false);
         setExpandedBookingId(null);
         setActionError("");
         if (next !== "account") setShowPasswordForm(false);
@@ -340,7 +359,7 @@ export default function EmployeeDashboard() {
             }));
             setWorkPlanMessage((prev) => ({
                 ...prev,
-                [bookingId]: "Work planned updated.",
+                [bookingId]: WORK_PLAN_SAVED,
             }));
         } catch (err) {
             const message = err.response?.data?.message ?? "Could not update work planned.";
@@ -433,759 +452,442 @@ export default function EmployeeDashboard() {
         }
     };
 
+    const submitWith = (action) => (e) => {
+        e.preventDefault();
+        action();
+    };
+
     const renderBookingDetails = (booking) => (
-        <div className="booking-detail-rows">
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Customer</span>
-                    <p>{booking.customerName || "—"}</p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">VIN</span>
-                    <p>{bookingVin(booking) || "—"}</p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Issue</span>
-                    <p>{booking.customerDescription || "—"}</p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Work planned</span>
-                    <p>
-                        {booking.serviceTypes?.length
+        <>
+            <DetailList
+                items={[
+                    { label: "Customer", value: booking.customerName || null },
+                    { label: "VIN", value: bookingVin(booking) },
+                    { label: "Issue", value: booking.customerDescription || null },
+                    {
+                        label: "Work planned",
+                        value: booking.serviceTypes?.length
                             ? booking.serviceTypes.join(", ")
-                            : "—"}
-                    </p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Estimated drop-off</span>
-                    <p>
-                        {booking.estimatedDropOffTime
+                            : null,
+                    },
+                    {
+                        label: "Estimated drop-off",
+                        value: booking.estimatedDropOffTime
                             ? formatCustomerDateTime(booking.estimatedDropOffTime)
-                            : "—"}
-                    </p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Appointment</span>
-                    <p>
-                        {booking.scheduledDateTime
+                            : null,
+                    },
+                    {
+                        label: "Appointment",
+                        value: booking.scheduledDateTime
                             ? formatCustomerDateTime(booking.scheduledDateTime)
-                            : "—"}
-                    </p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Estimated cost</span>
-                    <p>
-                        {booking.estimatedCost != null
-                            ? `${booking.estimatedCost} EUR`
-                            : "—"}
-                    </p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Final cost</span>
-                    <p>
-                        {booking.finalCost != null
-                            ? `${booking.finalCost} EUR`
-                            : "—"}
-                    </p>
-                </div>
-            </div>
-            <div className="booking-detail-row">
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Technician</span>
-                    <p>{assignedWorkerName(booking) || "—"}</p>
-                </div>
-                <div className="booking-detail-item">
-                    <span className="booking-detail-label">Availability notes</span>
-                    <p>{booking.availabilityNotes || "—"}</p>
-                </div>
-            </div>
-            {booking.status === "CANCELLED" && (
-                <div className="booking-detail-row">
-                    <div className="booking-detail-item">
-                        <span className="booking-detail-label">Cancelled by</span>
-                        <p>{cancelledByLabel(booking.cancelledBy) || "—"}</p>
-                    </div>
-                    <div className="booking-detail-item">
-                        <span className="booking-detail-label">Cancellation reason</span>
-                        <p>{booking.cancellationReason?.trim() || "—"}</p>
-                    </div>
-                </div>
-            )}
+                            : null,
+                    },
+                    { label: "Estimated cost", value: formatEuro(booking.estimatedCost) },
+                    { label: "Final cost", value: formatEuro(booking.finalCost) },
+                    { label: "Technician", value: assignedWorkerName(booking) },
+                    { label: "Availability notes", value: booking.availabilityNotes || null },
+                    {
+                        label: "Cancelled by",
+                        value: cancelledByLabel(booking.cancelledBy),
+                        hidden: booking.status !== "CANCELLED",
+                    },
+                    {
+                        label: "Cancellation reason",
+                        value: booking.cancellationReason?.trim() || null,
+                        hidden: booking.status !== "CANCELLED",
+                    },
+                ]}
+            />
             {!hasCustomerAvailability(booking) && (
-                <p className="availability-muted">No preferred date provided by customer.</p>
+                <p className="inline-status">No preferred date provided by customer.</p>
             )}
-        </div>
+        </>
     );
 
-    return (
-        <div className="client-dashboard-shell employee-dashboard-shell">
-            <div className="dashboard client-dashboard employee-dashboard">
-                <div className="dashboard-header">
-                    <div>
-                        <Logo className="logo" />
-                        <p className="dashboard-user">
-                            Signed in as {session?.name}
-                        </p>
-                    </div>
+    const reasonForm = ({ booking, forms, setter, label, buttonLabel, onSubmit }) => {
+        const hintId = `${label.toLowerCase().replaceAll(" ", "-")}-hint-${booking.id}`;
+        return (
+            <form className="row-section inline-action" onSubmit={submitWith(onSubmit)}>
+                <label className="field">
+                    <span className="field-label">{label}</span>
+                    <input
+                        className="input"
+                        aria-describedby={hintId}
+                        value={forms[booking.id]?.reason ?? ""}
+                        onChange={(e) => updateMap(setter, booking.id, "reason", e.target.value)}
+                    />
+                    <span id={hintId} className="field-hint">
+                        Required. The client sees this reason.
+                    </span>
+                </label>
+                <button type="submit" className="button button-danger">
+                    {buttonLabel}
+                </button>
+            </form>
+        );
+    };
 
-                    <div className="dashboard-header-actions">
-                        <ThemeToggle />
-                        <div className="menu" ref={menuRef}>
+    const renderAvailableActions = (booking) => (
+        <>
+            {consultant && (
+                <>
+                    <form
+                        className="row-section action-group"
+                        onSubmit={submitWith(() => acceptBooking(booking.id))}
+                    >
+                        <label className="field field-narrow">
+                            <span className="field-label">Appointment</span>
+                            <input
+                                className="input"
+                                type="datetime-local"
+                                value={acceptForms[booking.id]?.scheduledDateTime ?? ""}
+                                onChange={(e) =>
+                                    updateMap(
+                                        setAcceptForms,
+                                        booking.id,
+                                        "scheduledDateTime",
+                                        e.target.value
+                                    )
+                                }
+                            />
+                        </label>
+                        <CapacityStatus capacity={capacityByBookingId[booking.id]} />
+                        <div className="button-row">
                             <button
-                                type="button"
-                                className="menu-btn"
-                                aria-label="Open menu"
-                                aria-expanded={menuOpen}
-                                aria-haspopup="menu"
-                                onClick={() => setMenuOpen((open) => !open)}
+                                type="submit"
+                                className="button button-primary"
+                                disabled={
+                                    !acceptForms[booking.id]?.scheduledDateTime
+                                    || capacityByBookingId[booking.id]?.available !== true
+                                }
                             >
-                                <span />
-                                <span />
-                                <span />
+                                Accept booking
                             </button>
-
-                            {menuOpen && (
-                                <div className="menu-panel" role="menu">
-                                    {Object.entries(sections).map(([id, label]) => (
-                                        <button
-                                            key={id}
-                                            type="button"
-                                            role="menuitem"
-                                            className={
-                                                section === id
-                                                    ? "menu-item menu-item-active"
-                                                    : "menu-item"
-                                            }
-                                            onClick={() => selectSection(id)}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
                         </div>
+                    </form>
+                    {reasonForm({
+                        booking,
+                        forms: rejectForms,
+                        setter: setRejectForms,
+                        label: "Rejection reason",
+                        buttonLabel: "Reject",
+                        onSubmit: () => rejectBooking(booking.id),
+                    })}
+                </>
+            )}
 
-                        <button type="button" className="logout-btn" onClick={logout}>
-                            Sign out
+            {technician && (
+                <form
+                    className="row-section action-group"
+                    onSubmit={submitWith(() => claimBooking(booking.id))}
+                >
+                    <div className="form-grid">
+                        <label className="field">
+                            <span className="field-label">Estimated cost (EUR)</span>
+                            <input
+                                className="input"
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                step="0.01"
+                                placeholder="Optional"
+                                value={claimForms[booking.id]?.estimatedCost ?? ""}
+                                onChange={(e) =>
+                                    updateMap(setClaimForms, booking.id, "estimatedCost", e.target.value)
+                                }
+                            />
+                        </label>
+                        <label className="field">
+                            <span className="field-label">Services</span>
+                            <input
+                                className="input"
+                                placeholder="e.g. car check"
+                                aria-describedby={`claim-services-hint-${booking.id}`}
+                                value={claimForms[booking.id]?.serviceTypes ?? ""}
+                                onChange={(e) =>
+                                    updateMap(setClaimForms, booking.id, "serviceTypes", e.target.value)
+                                }
+                            />
+                            <span id={`claim-services-hint-${booking.id}`} className="field-hint">
+                                Separate services with commas.
+                            </span>
+                        </label>
+                    </div>
+                    <div className="button-row">
+                        <button type="submit" className="button button-primary">
+                            Claim job
                         </button>
                     </div>
-                </div>
+                </form>
+            )}
+        </>
+    );
 
-                {loading && <p>Loading…</p>}
-                {error && <p className="form-error">{error}</p>}
-                {actionError && <p className="form-error">{actionError}</p>}
+    const renderAssignmentActions = (booking) => (
+        <>
+            {consultant && booking.status === "READY_FOR_WORK" && reasonForm({
+                booking,
+                forms: cancelForms,
+                setter: setCancelForms,
+                label: "Cancellation reason",
+                buttonLabel: "Cancel booking",
+                onSubmit: () => cancelBooking(booking.id),
+            })}
 
-                {section === "available" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>{sections.available}</h2>
-                        <div className="booking-list">
-                            {available.map((booking) => {
-                                const expanded = expandedBookingId === `available-${booking.id}`;
-                                const vin = bookingVin(booking);
-                                const statusClass =
-                                    `booking-status booking-status-${String(booking.status || "")
-                                        .toLowerCase()
-                                        .replaceAll("_", "-")}`;
-
-                                return (
-                                    <div key={booking.id} className="booking-row">
-                                        <div className="booking-row-top">
-                                            <button
-                                                type="button"
-                                                className="booking-row-toggle"
-                                                aria-expanded={expanded}
-                                                onClick={() =>
-                                                    setExpandedBookingId((current) =>
-                                                        current === `available-${booking.id}`
-                                                            ? null
-                                                            : `available-${booking.id}`
-                                                    )
-                                                }
-                                            >
-                                                <div className="booking-row-heading">
-                                                    <span className="booking-row-id">
-                                                        Booking #{booking.id}
-                                                    </span>
-                                                    <span className={statusClass}>
-                                                        {formatStatus(booking.status)}
-                                                    </span>
-                                                    <span className="booking-row-chevron" aria-hidden="true">
-                                                        {expanded ? "▾" : "▸"}
-                                                    </span>
-                                                </div>
-                                                <p className="booking-row-title">
-                                                    {booking.carModel}
-                                                    {vin ? ` · VIN ${vin}` : ""}
-                                                </p>
-                                                <p className="booking-row-meta">
-                                                    {booking.customerName}
-                                                    {booking.estimatedDropOffTime
-                                                        ? ` · Drop-off ${formatCustomerDateTime(booking.estimatedDropOffTime)}`
-                                                        : ""}
-                                                    {booking.scheduledDateTime
-                                                        ? ` · Appointment ${formatCustomerDateTime(booking.scheduledDateTime)}`
-                                                        : ""}
-                                                </p>
-                                            </button>
-                                        </div>
-
-                                        {expanded && (
-                                            <div className="booking-row-details">
-                                                {renderBookingDetails(booking)}
-
-                                                <div className="worker-actions-panel">
-                                                    {consultant && (
-                                                        <>
-                                                            <label className="worker-field">
-                                                                <span className="booking-detail-label">
-                                                                    Appointment
-                                                                </span>
-                                                                <input
-                                                                    type="datetime-local"
-                                                                    value={
-                                                                        acceptForms[booking.id]
-                                                                            ?.scheduledDateTime ?? ""
-                                                                    }
-                                                                    onChange={(e) =>
-                                                                        updateMap(
-                                                                            setAcceptForms,
-                                                                            booking.id,
-                                                                            "scheduledDateTime",
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </label>
-                                                            {(() => {
-                                                                const capacity =
-                                                                    capacityByBookingId[booking.id];
-                                                                if (!capacity) {
-                                                                    return (
-                                                                        <p className="capacity-status capacity-status-pending">
-                                                                            Checking mechanic availability…
-                                                                        </p>
-                                                                    );
-                                                                }
-                                                                if (capacity.error) {
-                                                                    return (
-                                                                        <p className="capacity-status capacity-status-full">
-                                                                            Could not check capacity. Try again.
-                                                                        </p>
-                                                                    );
-                                                                }
-                                                                if (capacity.available) {
-                                                                    return (
-                                                                        <p className="capacity-status capacity-status-ok">
-                                                                            Mechanic free at this time —
-                                                                            {" "}
-                                                                            {capacity.remainingSlots}
-                                                                            {" "}
-                                                                            of
-                                                                            {" "}
-                                                                            {capacity.technicianCount}
-                                                                            {" "}
-                                                                            available
-                                                                            ({capacity.bookedCount} still on
-                                                                            earlier open jobs).
-                                                                        </p>
-                                                                    );
-                                                                }
-                                                                return (
-                                                                    <p className="capacity-status capacity-status-full">
-                                                                        No mechanic free at this time
-                                                                        ({capacity.bookedCount}
-                                                                        /
-                                                                        {capacity.technicianCount}
-                                                                        {" "}
-                                                                        busy on open jobs). Call the client
-                                                                        to discuss another appointment.
-                                                                    </p>
-                                                                );
-                                                            })()}
-                                                            <div className="worker-action-row">
-                                                                <button
-                                                                    type="button"
-                                                                    className="primary-btn"
-                                                                    disabled={
-                                                                        !acceptForms[booking.id]
-                                                                            ?.scheduledDateTime
-                                                                        || capacityByBookingId[booking.id]
-                                                                            ?.available !== true
-                                                                    }
-                                                                    onClick={() =>
-                                                                        acceptBooking(booking.id)
-                                                                    }
-                                                                >
-                                                                    Accept booking
-                                                                </button>
-                                                            </div>
-
-                                                            <label className="worker-field">
-                                                                <span className="booking-detail-label">
-                                                                    Rejection reason
-                                                                </span>
-                                                                <input
-                                                                    placeholder="Required to reject"
-                                                                    value={rejectForms[booking.id]?.reason ?? ""}
-                                                                    onChange={(e) =>
-                                                                        updateMap(
-                                                                            setRejectForms,
-                                                                            booking.id,
-                                                                            "reason",
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </label>
-                                                            <div className="worker-action-row">
-                                                                <button
-                                                                    type="button"
-                                                                    className="danger-btn"
-                                                                    onClick={() =>
-                                                                        rejectBooking(booking.id)
-                                                                    }
-                                                                >
-                                                                    Reject
-                                                                </button>
-                                                            </div>
-                                                        </>
-                                                    )}
-
-                                                    {technician && (
-                                                        <>
-                                                            <div className="worker-form-grid">
-                                                                <label className="worker-field">
-                                                                    <span className="booking-detail-label">
-                                                                        Estimated cost (EUR)
-                                                                    </span>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        placeholder="Optional"
-                                                                        value={
-                                                                            claimForms[booking.id]
-                                                                                ?.estimatedCost ?? ""
-                                                                        }
-                                                                        onChange={(e) =>
-                                                                            updateMap(
-                                                                                setClaimForms,
-                                                                                booking.id,
-                                                                                "estimatedCost",
-                                                                                e.target.value
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </label>
-                                                                <label className="worker-field">
-                                                                    <span className="booking-detail-label">
-                                                                        Services
-                                                                    </span>
-                                                                    <input
-                                                                        placeholder="e.g. car check"
-                                                                        value={
-                                                                            claimForms[booking.id]
-                                                                                ?.serviceTypes ?? ""
-                                                                        }
-                                                                        onChange={(e) =>
-                                                                            updateMap(
-                                                                                setClaimForms,
-                                                                                booking.id,
-                                                                                "serviceTypes",
-                                                                                e.target.value
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </label>
-                                                            </div>
-                                                            <div className="worker-action-row">
-                                                                <button
-                                                                    type="button"
-                                                                    className="primary-btn"
-                                                                    onClick={() =>
-                                                                        claimBooking(booking.id)
-                                                                    }
-                                                                >
-                                                                    Claim
-                                                                </button>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+            {technician && booking.status === "IN_PROGRESS" && (
+                <>
+                    <form
+                        className="row-section action-group"
+                        onSubmit={submitWith(() => updateWorkPlan(booking.id))}
+                    >
+                        <div className="form-grid">
+                            <label className="field">
+                                <span className="field-label">Work planned</span>
+                                <input
+                                    className="input"
+                                    placeholder="e.g. brake replace"
+                                    aria-describedby={`plan-hint-${booking.id}`}
+                                    value={
+                                        workPlanForms[booking.id]?.serviceTypes
+                                        ?? (booking.serviceTypes ?? []).join(", ")
+                                    }
+                                    onChange={(e) =>
+                                        updateWorkPlanField(booking.id, "serviceTypes", e.target.value)
+                                    }
+                                />
+                                <span id={`plan-hint-${booking.id}`} className="field-hint">
+                                    Separate services with commas.
+                                </span>
+                            </label>
+                            <label className="field">
+                                <span className="field-label">Estimated cost (EUR)</span>
+                                <input
+                                    className="input"
+                                    type="number"
+                                    inputMode="decimal"
+                                    min="0"
+                                    step="0.01"
+                                    value={
+                                        workPlanForms[booking.id]?.estimatedCost
+                                        ?? (booking.estimatedCost != null
+                                            ? String(booking.estimatedCost)
+                                            : "")
+                                    }
+                                    onChange={(e) =>
+                                        updateWorkPlanField(booking.id, "estimatedCost", e.target.value)
+                                    }
+                                />
+                            </label>
                         </div>
-                    </section>
+                        <div className="button-row">
+                            <button type="submit" className="button button-secondary">
+                                Update work planned
+                            </button>
+                        </div>
+                        <div role="status">
+                            {workPlanMessage[booking.id] && (
+                                <p
+                                    className={`inline-status ${
+                                        workPlanMessage[booking.id] === WORK_PLAN_SAVED
+                                            ? "inline-status-ok"
+                                            : "inline-status-error"
+                                    }`}
+                                >
+                                    {workPlanMessage[booking.id]}
+                                </p>
+                            )}
+                        </div>
+                    </form>
+
+                    <form
+                        className="row-section inline-action"
+                        onSubmit={submitWith(() => completeBooking(booking.id))}
+                    >
+                        <label className="field">
+                            <span className="field-label">Final cost (EUR)</span>
+                            <input
+                                className="input"
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                step="0.01"
+                                aria-describedby={`final-hint-${booking.id}`}
+                                value={completeForms[booking.id]?.finalCost ?? ""}
+                                onChange={(e) =>
+                                    updateMap(setCompleteForms, booking.id, "finalCost", e.target.value)
+                                }
+                            />
+                            <span id={`final-hint-${booking.id}`} className="field-hint">
+                                Required to complete. Appears on the invoice.
+                            </span>
+                        </label>
+                        <button type="submit" className="button button-primary">
+                            Complete
+                        </button>
+                    </form>
+
+                    {reasonForm({
+                        booking,
+                        forms: cancelForms,
+                        setter: setCancelForms,
+                        label: "Cancellation reason",
+                        buttonLabel: "Cancel booking",
+                        onSubmit: () => cancelBooking(booking.id),
+                    })}
+                </>
+            )}
+        </>
+    );
+
+    const renderRow = (booking, prefix, meta, actions) => {
+        const key = `${prefix}-${booking.id}`;
+        return (
+            <ExpandableRow
+                key={booking.id}
+                eyebrow={`Booking #${booking.id}`}
+                title={booking.carModel}
+                meta={meta}
+                badge={<StatusBadge status={booking.status} />}
+                highlight={booking.status === "IN_PROGRESS" && prefix !== "archive"}
+                expanded={expandedBookingId === key}
+                onToggle={() =>
+                    setExpandedBookingId((current) => (current === key ? null : key))
+                }
+            >
+                {renderBookingDetails(booking)}
+                {actions}
+            </ExpandableRow>
+        );
+    };
+
+    const lists = {
+        available: {
+            items: available,
+            empty: consultant ? "No new requests." : "No jobs waiting to be claimed.",
+            render: (booking) =>
+                renderRow(
+                    booking,
+                    "available",
+                    joinMeta([
+                        bookingVin(booking) && `VIN ${bookingVin(booking)}`,
+                        booking.customerName,
+                        booking.estimatedDropOffTime
+                            && `Drop-off ${formatCustomerDateTime(booking.estimatedDropOffTime)}`,
+                        booking.scheduledDateTime
+                            && `Appointment ${formatCustomerDateTime(booking.scheduledDateTime)}`,
+                    ]),
+                    renderAvailableActions(booking)
+                ),
+        },
+        assignments: {
+            items: assignmentList,
+            empty: consultant ? "Nothing in the workshop right now." : "You have no active jobs.",
+            render: (booking) =>
+                renderRow(
+                    booking,
+                    "assigned",
+                    joinMeta([
+                        bookingVin(booking) && `VIN ${bookingVin(booking)}`,
+                        booking.customerName,
+                        booking.scheduledDateTime
+                            ? `Appointment ${formatCustomerDateTime(booking.scheduledDateTime)}`
+                            : booking.estimatedDropOffTime
+                                && `Preferred ${formatCustomerDateTime(booking.estimatedDropOffTime)}`,
+                        consultant && assignedWorkerName(booking),
+                    ]),
+                    renderAssignmentActions(booking)
+                ),
+        },
+        archive: {
+            items: archive,
+            empty: archiveQuery ? `No bookings match “${archiveQuery}”.` : "No archived bookings yet.",
+            render: (booking) =>
+                renderRow(
+                    booking,
+                    "archive",
+                    joinMeta([
+                        bookingVin(booking) && `VIN ${bookingVin(booking)}`,
+                        booking.customerName,
+                        booking.scheduledDateTime
+                            && `Appointment ${formatCustomerDateTime(booking.scheduledDateTime)}`,
+                        assignedWorkerName(booking),
+                        booking.status === "CANCELLED"
+                            && cancelledByLabel(booking.cancelledBy)
+                            && `Cancelled by ${cancelledByLabel(booking.cancelledBy)}`,
+                        booking.status === "COMPLETED"
+                            && booking.finalCost != null
+                            && `${booking.finalCost} EUR`,
+                    ]),
+                    null
+                ),
+        },
+    };
+
+    const list = lists[section];
+
+    return (
+        <AppShell
+            pageTitle={sections[section]}
+            title={consultant ? "Service desk" : "Workshop"}
+            homeTo="/employee"
+            userName={session?.name}
+            onSignOut={logout}
+            sections={sections}
+            activeSection={section}
+            onSelectSection={selectSection}
+        >
+            <header className="page-header">
+                <h1 ref={headingRef} tabIndex={-1} className="page-title">
+                    {sections[section]}
+                </h1>
+                <p className="page-lede">{ledes[section]}</p>
+            </header>
+
+            <div className="stack">
+                {loading && (
+                    <p className="status-text" role="status">
+                        Loading…
+                    </p>
                 )}
-
-                {section === "assignments" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>{sections.assignments}</h2>
-                        <div className="booking-list">
-                            {assignmentList.map((booking) => {
-                                const expanded = expandedBookingId === `assigned-${booking.id}`;
-                                const vin = bookingVin(booking);
-                                const statusClass =
-                                    `booking-status booking-status-${String(booking.status || "")
-                                        .toLowerCase()
-                                        .replaceAll("_", "-")}`;
-
-                                return (
-                                    <div key={booking.id} className="booking-row">
-                                        <div className="booking-row-top">
-                                            <button
-                                                type="button"
-                                                className="booking-row-toggle"
-                                                aria-expanded={expanded}
-                                                onClick={() =>
-                                                    setExpandedBookingId((current) =>
-                                                        current === `assigned-${booking.id}`
-                                                            ? null
-                                                            : `assigned-${booking.id}`
-                                                    )
-                                                }
-                                            >
-                                                <div className="booking-row-heading">
-                                                    <span className="booking-row-id">
-                                                        Booking #{booking.id}
-                                                    </span>
-                                                    <span className={statusClass}>
-                                                        {formatStatus(booking.status)}
-                                                    </span>
-                                                    <span className="booking-row-chevron" aria-hidden="true">
-                                                        {expanded ? "▾" : "▸"}
-                                                    </span>
-                                                </div>
-                                                <p className="booking-row-title">
-                                                    {booking.carModel}
-                                                    {vin ? ` · VIN ${vin}` : ""}
-                                                </p>
-                                                <p className="booking-row-meta">
-                                                    {booking.customerName}
-                                                    {booking.scheduledDateTime
-                                                        ? ` · Appointment ${formatCustomerDateTime(booking.scheduledDateTime)}`
-                                                        : booking.estimatedDropOffTime
-                                                            ? ` · Preferred ${formatCustomerDateTime(booking.estimatedDropOffTime)}`
-                                                            : ""}
-                                                    {consultant && assignedWorkerName(booking)
-                                                        ? ` · ${assignedWorkerName(booking)}`
-                                                        : ""}
-                                                </p>
-                                            </button>
-                                        </div>
-
-                                        {expanded && (
-                                            <div className="booking-row-details">
-                                                {renderBookingDetails(booking)}
-
-                                                <div className="worker-actions-panel">
-                                                    {consultant && booking.status === "READY_FOR_WORK" && (
-                                                        <>
-                                                            <label className="worker-field">
-                                                                <span className="booking-detail-label">
-                                                                    Cancellation reason
-                                                                </span>
-                                                                <input
-                                                                    placeholder="Required to cancel"
-                                                                    value={
-                                                                        cancelForms[booking.id]
-                                                                            ?.reason ?? ""
-                                                                    }
-                                                                    onChange={(e) =>
-                                                                        updateMap(
-                                                                            setCancelForms,
-                                                                            booking.id,
-                                                                            "reason",
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </label>
-                                                            <div className="worker-action-row">
-                                                                <button
-                                                                    type="button"
-                                                                    className="danger-btn"
-                                                                    onClick={() =>
-                                                                        cancelBooking(booking.id)
-                                                                    }
-                                                                >
-                                                                    Cancel booking
-                                                                </button>
-                                                            </div>
-                                                        </>
-                                                    )}
-
-                                                    {technician && booking.status === "IN_PROGRESS" && (
-                                                        <>
-                                                            <div className="worker-form-grid">
-                                                                <label className="worker-field">
-                                                                    <span className="booking-detail-label">
-                                                                        Work planned
-                                                                    </span>
-                                                                    <input
-                                                                        placeholder="e.g. brake replace"
-                                                                        value={
-                                                                            workPlanForms[booking.id]
-                                                                                ?.serviceTypes
-                                                                            ?? (booking.serviceTypes ?? []).join(", ")
-                                                                        }
-                                                                        onChange={(e) =>
-                                                                            updateWorkPlanField(
-                                                                                booking.id,
-                                                                                "serviceTypes",
-                                                                                e.target.value
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </label>
-                                                                <label className="worker-field">
-                                                                    <span className="booking-detail-label">
-                                                                        Estimated cost (EUR)
-                                                                    </span>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        step="0.01"
-                                                                        value={
-                                                                            workPlanForms[booking.id]
-                                                                                ?.estimatedCost
-                                                                            ?? (booking.estimatedCost != null
-                                                                                ? String(booking.estimatedCost)
-                                                                                : "")
-                                                                        }
-                                                                        onChange={(e) =>
-                                                                            updateWorkPlanField(
-                                                                                booking.id,
-                                                                                "estimatedCost",
-                                                                                e.target.value
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </label>
-                                                            </div>
-                                                            <div className="worker-action-row">
-                                                                <button
-                                                                    type="button"
-                                                                    className="primary-btn"
-                                                                    onClick={() =>
-                                                                        updateWorkPlan(booking.id)
-                                                                    }
-                                                                >
-                                                                    Update work planned
-                                                                </button>
-                                                            </div>
-                                                            {workPlanMessage[booking.id] && (
-                                                                <p
-                                                                    className={
-                                                                        workPlanMessage[booking.id]
-                                                                            === "Work planned updated."
-                                                                            ? "capacity-status capacity-status-ok"
-                                                                            : "capacity-status capacity-status-full"
-                                                                    }
-                                                                >
-                                                                    {workPlanMessage[booking.id]}
-                                                                </p>
-                                                            )}
-
-                                                            <label className="worker-field">
-                                                                <span className="booking-detail-label">
-                                                                    Final cost (EUR)
-                                                                </span>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    step="0.01"
-                                                                    placeholder="Required to complete"
-                                                                    value={
-                                                                        completeForms[booking.id]
-                                                                            ?.finalCost ?? ""
-                                                                    }
-                                                                    onChange={(e) =>
-                                                                        updateMap(
-                                                                            setCompleteForms,
-                                                                            booking.id,
-                                                                            "finalCost",
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </label>
-                                                            <div className="worker-action-row">
-                                                                <button
-                                                                    type="button"
-                                                                    className="primary-btn"
-                                                                    onClick={() =>
-                                                                        completeBooking(booking.id)
-                                                                    }
-                                                                >
-                                                                    Complete
-                                                                </button>
-                                                            </div>
-
-                                                            <label className="worker-field">
-                                                                <span className="booking-detail-label">
-                                                                    Cancellation reason
-                                                                </span>
-                                                                <input
-                                                                    placeholder="Required to cancel"
-                                                                    value={
-                                                                        cancelForms[booking.id]
-                                                                            ?.reason ?? ""
-                                                                    }
-                                                                    onChange={(e) =>
-                                                                        updateMap(
-                                                                            setCancelForms,
-                                                                            booking.id,
-                                                                            "reason",
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </label>
-                                                            <div className="worker-action-row">
-                                                                <button
-                                                                    type="button"
-                                                                    className="danger-btn"
-                                                                    onClick={() =>
-                                                                        cancelBooking(booking.id)
-                                                                    }
-                                                                >
-                                                                    Cancel booking
-                                                                </button>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </section>
+                {error && (
+                    <p className="message message-error" role="alert">
+                        {error}
+                    </p>
+                )}
+                {actionError && (
+                    <p className="message message-error" role="alert">
+                        {actionError}
+                    </p>
                 )}
 
                 {section === "archive" && (
-                    <section className="section-block dashboard-panel">
-                        <label className="archive-find">
-                            <span className="archive-find-label">Find</span>
+                    <div className="toolbar">
+                        <label className="field">
+                            <span className="field-label">Search archive</span>
                             <input
+                                className="input"
                                 type="search"
-                                placeholder="Search by customer, VIN, model, status…"
+                                placeholder="Customer, VIN, model, status"
                                 value={archiveQuery}
                                 onChange={(e) => setArchiveQuery(e.target.value)}
                             />
                         </label>
-                        <div className="booking-list">
-                            {archive.map((booking) => {
-                                const expanded = expandedBookingId === `archive-${booking.id}`;
-                                const vin = bookingVin(booking);
-                                const statusClass =
-                                    `booking-status booking-status-${String(booking.status || "")
-                                        .toLowerCase()
-                                        .replaceAll("_", "-")}`;
+                    </div>
+                )}
 
-                                return (
-                                    <div key={booking.id} className="booking-row">
-                                        <div className="booking-row-top">
-                                            <button
-                                                type="button"
-                                                className="booking-row-toggle"
-                                                aria-expanded={expanded}
-                                                onClick={() =>
-                                                    setExpandedBookingId((current) =>
-                                                        current === `archive-${booking.id}`
-                                                            ? null
-                                                            : `archive-${booking.id}`
-                                                    )
-                                                }
-                                            >
-                                                <div className="booking-row-heading">
-                                                    <span className="booking-row-id">
-                                                        Booking #{booking.id}
-                                                    </span>
-                                                    <span className={statusClass}>
-                                                        {formatStatus(booking.status)}
-                                                    </span>
-                                                    <span className="booking-row-chevron" aria-hidden="true">
-                                                        {expanded ? "▾" : "▸"}
-                                                    </span>
-                                                </div>
-                                                <p className="booking-row-title">
-                                                    {booking.carModel}
-                                                    {vin ? ` · VIN ${vin}` : ""}
-                                                </p>
-                                                <p className="booking-row-meta">
-                                                    {booking.customerName}
-                                                    {booking.scheduledDateTime
-                                                        ? ` · Appointment ${formatCustomerDateTime(booking.scheduledDateTime)}`
-                                                        : ""}
-                                                    {assignedWorkerName(booking)
-                                                        ? ` · ${assignedWorkerName(booking)}`
-                                                        : ""}
-                                                    {booking.status === "CANCELLED"
-                                                        && cancelledByLabel(booking.cancelledBy)
-                                                        ? ` · Cancelled by ${cancelledByLabel(booking.cancelledBy)}`
-                                                        : ""}
-                                                    {booking.status === "COMPLETED"
-                                                        && booking.finalCost != null
-                                                        ? ` · ${booking.finalCost} EUR`
-                                                        : ""}
-                                                </p>
-                                            </button>
-                                        </div>
-
-                                        {expanded && (
-                                            <div className="booking-row-details">
-                                                {renderBookingDetails(booking)}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </section>
+                {list && !loading && list.items.length === 0 && (
+                    <p className="empty-state" role={section === "archive" ? "status" : undefined}>
+                        {list.empty}
+                    </p>
+                )}
+                {list && list.items.length > 0 && (
+                    <ul className="row-list">{list.items.map(list.render)}</ul>
                 )}
 
                 {section === "account" && (
-                    <section className="section-block dashboard-panel">
-                        <h2>Account management</h2>
-
-                        {!showPasswordForm ? (
-                            <button
-                                type="button"
-                                className="primary-btn section-action-btn"
-                                onClick={() => setShowPasswordForm(true)}
-                            >
-                                Change password
-                            </button>
-                        ) : (
-                            <div className="account-password-panel">
-                                <div className="account-password-toolbar">
-                                    <h3>Change password</h3>
-                                    <button
-                                        type="button"
-                                        className="logout-btn"
-                                        onClick={() => setShowPasswordForm(false)}
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                                <ChangePasswordForm embedded />
-                            </div>
-                        )}
-                    </section>
+                    <PasswordCard open={showPasswordForm} onOpenChange={setShowPasswordForm} />
                 )}
             </div>
-        </div>
+        </AppShell>
     );
 }

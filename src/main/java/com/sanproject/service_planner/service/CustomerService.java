@@ -12,7 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
-// Customer CRUD; create triggers a registration welcome email.
+/** Customer CRUD; create triggers a registration welcome email. */
 @Service
 public class CustomerService {
 

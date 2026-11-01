@@ -2,10 +2,8 @@ import axios from "axios";
 import { clearSession, getSession } from "./auth";
 
 /**
- * Shared Axios client for the Spring API.
- * Request interceptor: attach JWT Bearer token from localStorage.
- * Response interceptor: on 401 (expired/invalid token), clear session and bounce to login.
- * Backend remains the source of truth — this only improves UX.
+ * Axios client for the Spring API. Sends the stored JWT as a Bearer token and, on a 401,
+ * clears the session and returns to the login page.
  */
 export const api = axios.create({
     baseURL: "http://localhost:8080",
@@ -27,7 +25,6 @@ api.interceptors.response.use(
             const message = retryAfter
                 ? `Too many requests. Please wait ${retryAfter} seconds before trying again.`
                 : "Too many requests. Please slow down and try again.";
-            // Attach a friendly message for UI components to surface.
             error.message = message;
             return Promise.reject(error);
         }

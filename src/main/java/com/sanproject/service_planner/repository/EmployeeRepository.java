@@ -6,6 +6,6 @@ import com.sanproject.service_planner.domain.Worker;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-// Polymorphic repository over Admin and Worker for authorization lookups.
+/** Polymorphic repository over Admin and Worker for authorization lookups. */
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 }

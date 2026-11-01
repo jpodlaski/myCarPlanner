@@ -11,8 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Maps Bean Validation failures and ResponseStatusException to consistent JSON error bodies.
- * Controllers stay clean: throw ResponseStatusException / rely on @Valid, this advice formats the HTTP response.
+ * Formats Bean Validation failures and ResponseStatusException as consistent JSON error bodies.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {

@@ -120,7 +120,7 @@ public class EmailOutboxProcessor {
             log.error("Outbox {} permanently failed after {} attempts: {}",
                     row.getId(), row.getAttemptCount(), message);
         } else {
-            // Exponential-ish backoff: 10s, 20s, 40s, …
+            // Backoff doubles from 10 s, capped at 160 s.
             long delaySeconds = 10L * (1L << Math.min(row.getAttemptCount() - 1, 4));
             row.setStatus(EmailOutboxStatus.PENDING);
             row.setNextAttemptAt(LocalDateTime.now().plusSeconds(delaySeconds));

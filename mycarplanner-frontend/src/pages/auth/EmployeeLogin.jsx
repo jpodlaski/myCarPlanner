@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../services/api";
 import { getDashboardPathForRole, saveSession } from "../../services/auth";
-import "../../components/DashboardLayout.css";
-import "./AuthShell.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
+import AuthLayout from "../../components/AuthLayout";
+import TextField from "../../components/TextField";
 
-// Staff login; role in the response routes to /admin or /employee dashboard.
+/** Staff login; the returned role picks the /admin or /employee dashboard. */
 export default function EmployeeLogin() {
     const navigate = useNavigate();
     const [login, setLogin] = useState("");
@@ -36,38 +34,38 @@ export default function EmployeeLogin() {
     };
 
     return (
-        <div className="auth-shell">
-            <ThemeToggle className="theme-toggle-auth" />
-            <div className="auth-shell-panel">
-                <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <Logo />
-                </Link>
-                <h1>Employee login</h1>
-
-                <form className="auth-form" onSubmit={loginEmployee}>
-                    <input
-                        placeholder="Login"
-                        value={login}
-                        onChange={(e) => setLogin(e.target.value)}
-                        required
-                    />
-                    <input
-                        type="password"
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-                    <button type="submit" disabled={loading}>
-                        {loading ? "Signing in…" : "Sign in"}
-                    </button>
-                    {error && <p className="form-error">{error}</p>}
-                </form>
-
-                <div className="auth-links">
-                    <Link to="/">Back to home</Link>
-                </div>
-            </div>
-        </div>
+        <AuthLayout
+            title="Staff sign in"
+            lede="For workshop consultants, technicians and management."
+            links={[{ to: "/", label: "Back to home" }]}
+        >
+            <form className="form-stack" onSubmit={loginEmployee}>
+                <TextField
+                    label="Login"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    value={login}
+                    onChange={(e) => setLogin(e.target.value)}
+                    required
+                />
+                <TextField
+                    label="Password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                />
+                {error && (
+                    <p className="message message-error" role="alert">
+                        {error}
+                    </p>
+                )}
+                <button type="submit" className="button button-primary button-block" disabled={loading}>
+                    {loading ? "Signing in…" : "Sign in"}
+                </button>
+            </form>
+        </AuthLayout>
     );
 }

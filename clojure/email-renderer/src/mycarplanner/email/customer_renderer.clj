@@ -20,7 +20,7 @@
                   (spec-line "VIN" vin)]))))
 
 (defn- action-email
-  [customer-name subject intro cta-label action-url & {:keys [extra-lines]}]
+  [customer-name subject intro cta-label action-url & {:keys [extra-lines title]}]
   (let [name (or customer-name "Customer")
         text-extra (when (seq extra-lines)
                      (str "\n" (str/join "\n" extra-lines)))
@@ -35,7 +35,8 @@
                    (str (layout/p intro)
                         (layout/cta-html cta-label action-url)
                         (when (seq extra-lines)
-                          (str/join "" (map layout/p extra-lines)))))]
+                          (str/join "" (map layout/note extra-lines))))
+                   {:title title :preheader intro})]
     {:subject subject
      :textBody text-body
      :htmlBody html-body}))
@@ -64,7 +65,8 @@
             "Please verify your email before signing in.")
        "Verify email"
        actionUrl
-       :extra-lines ["This link expires after 24 hours."])
+       :extra-lines ["This link expires after 24 hours."]
+       :title (str "Welcome to " layout/brand-name "."))
 
       "email_verification"
       (action-email
@@ -73,7 +75,8 @@
        "Please verify your email address to activate your account."
        "Verify email"
        (or actionUrl "")
-       :extra-lines ["This link expires after 24 hours."])
+       :extra-lines ["This link expires after 24 hours."]
+       :title "Verify your email.")
 
       "password_reset"
       (action-email
@@ -83,7 +86,8 @@
        "Reset password"
        (or actionUrl "")
        :extra-lines ["If you did not request this, you can ignore this email."
-                     "This link expires after 1 hour."])
+                     "This link expires after 1 hour."]
+       :title "Reset your password.")
 
       "password_changed"
       {:subject "myCarPlanner – password changed"
@@ -97,7 +101,8 @@
                   (str (layout/p (str "Your " layout/brand-name
                                       " password was changed successfully."))
                        (layout/p (str "If you did not make this change, reset your password "
-                                      "immediately and contact the workshop."))))}
+                                      "immediately and contact the workshop.")))
+                  {:title "Your password was changed."})}
 
       "account_deletion"
       (action-email
@@ -108,7 +113,8 @@
        "Confirm account deletion"
        (or actionUrl "")
        :extra-lines ["If you did not request this, you can ignore this email — your account will stay active."
-                     "This link expires after 1 hour."])
+                     "This link expires after 1 hour."]
+       :title "Confirm account deletion.")
 
       "account_deleted"
       {:subject "myCarPlanner – account deleted"
@@ -119,7 +125,8 @@
        :htmlBody (layout/wrap-html
                   name
                   (str (layout/p (str "Your " layout/brand-name " account has been deleted."))
-                       (layout/p "Past workshop records may be retained by the service centre as required.")))}
+                       (layout/p "Past workshop records may be retained by the service centre as required."))
+                  {:title "Your account has been deleted."})}
 
       "vehicle_added"
       {:subject "myCarPlanner – vehicle added"
@@ -129,7 +136,8 @@
        :htmlBody (layout/wrap-html
                   name
                   (str (layout/p "A vehicle has been added to your account.")
-                       (or spec-html "")))}
+                       (or spec-html ""))
+                  {:title "Vehicle added."})}
 
       "vehicle_removed"
       {:subject "myCarPlanner – vehicle removed"
@@ -142,7 +150,8 @@
                   name
                   (str (layout/p "A vehicle has been removed from your account.")
                        (or spec-html "")
-                       (layout/p "Your past service records are kept on file.")))}
+                       (layout/p "Your past service records are kept on file."))
+                  {:title "Vehicle removed."})}
 
       {:subject "myCarPlanner – notification"
        :textBody (layout/wrap-text

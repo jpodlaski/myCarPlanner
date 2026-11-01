@@ -3,7 +3,7 @@ package com.sanproject.service_planner.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-// configurationId comes from the catalog; VIN and production year are user-supplied.
+/** configurationId comes from the catalog; VIN and production year are entered by the client. */
 public class CreateVehicleRequest {
 
     @NotBlank(message = "VIN is required")

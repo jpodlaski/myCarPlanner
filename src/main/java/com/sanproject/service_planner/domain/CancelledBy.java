@@ -1,6 +1,9 @@
 package com.sanproject.service_planner.domain;
 
-// WORKSHOP is used when a worker rejects an unclaimed booking.
+/**
+ * WORKSHOP: a consultant rejected or cancelled the booking before a technician claimed it.
+ * WORKER: the assigned technician cancelled it.
+ */
 public enum CancelledBy {
     CUSTOMER,
     WORKER,

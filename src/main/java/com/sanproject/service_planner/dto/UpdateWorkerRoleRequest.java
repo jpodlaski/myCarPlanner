@@ -4,7 +4,7 @@ import com.sanproject.service_planner.domain.EmployeeRole;
 
 import jakarta.validation.constraints.NotNull;
 
-// Role change; ADMIN role cannot be assigned to worker accounts. Caller from JWT.
+/** Worker role change; ADMIN cannot be assigned to worker accounts. */
 public class UpdateWorkerRoleRequest {
 
     @NotNull(message = "Role is required")

@@ -1,6 +1,6 @@
 package com.sanproject.service_planner.dto;
 
-// Reason required for all cancellations; actor (customer vs staff) comes from the JWT.
+/** Cancellation reason (always required); the actor comes from the JWT. */
 public class CancelBookingRequest {
 
     private String reason;

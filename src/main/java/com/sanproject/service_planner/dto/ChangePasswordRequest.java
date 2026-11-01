@@ -3,7 +3,7 @@ package com.sanproject.service_planner.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-// Authenticated password change; identity comes from the JWT, not the body.
+/** Authenticated password change; identity comes from the JWT, not the body. */
 public class ChangePasswordRequest {
 
     @NotBlank(message = "Current password is required")

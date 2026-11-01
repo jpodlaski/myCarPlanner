@@ -1,6 +1,6 @@
 package com.sanproject.service_planner.email;
 
-// JSON body sent to the Clojure renderer for registration and vehicle emails.
+/** JSON body sent to the Clojure renderer for account and vehicle emails. */
 public class CustomerEmailPayload {
 
     private String event;

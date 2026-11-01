@@ -7,17 +7,11 @@ export const THEME_STORAGE_KEY = "mycarplanner_theme";
 export const DARK = "dark";
 export const LIGHT = "light";
 
-const LIGHT_QUERY = "(prefers-color-scheme: light)";
+/** Used when the visitor has not chosen a theme. */
+export const DEFAULT_THEME = LIGHT;
 
 export function isTheme(value) {
     return value === DARK || value === LIGHT;
-}
-
-export function getSystemTheme() {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-        return DARK;
-    }
-    return window.matchMedia(LIGHT_QUERY).matches ? LIGHT : DARK;
 }
 
 /** Explicit user choice, or null. */
@@ -38,18 +32,14 @@ export function storeTheme(theme) {
     }
 }
 
+// Browser chrome colour; matches --bg in src/index.css.
+const THEME_COLORS = { [LIGHT]: "#ffffff", [DARK]: "#000000" };
+
 export function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS[theme]);
 }
 
 export function resolveInitialTheme() {
-    return getStoredTheme() ?? getSystemTheme();
-}
-
-/** Subscribe to OS theme changes. Returns unsubscribe. */
-export function watchSystemTheme(onChange) {
-    const query = window.matchMedia(LIGHT_QUERY);
-    const handler = (event) => onChange(event.matches ? LIGHT : DARK);
-    query.addEventListener("change", handler);
-    return () => query.removeEventListener("change", handler);
+    return getStoredTheme() ?? DEFAULT_THEME;
 }

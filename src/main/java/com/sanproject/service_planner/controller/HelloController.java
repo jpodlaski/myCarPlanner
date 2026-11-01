@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-// Simple health-check endpoint for verifying the API is up.
+/** Health check for verifying the API is up. */
 @RestController
 public class HelloController {
 

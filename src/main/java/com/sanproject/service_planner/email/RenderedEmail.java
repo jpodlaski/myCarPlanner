@@ -1,6 +1,6 @@
 package com.sanproject.service_planner.email;
 
-// Subject and bodies returned by the Clojure email-renderer service.
+/** Subject and bodies returned by the Clojure email-renderer service. */
 public class RenderedEmail {
 
     private String subject;

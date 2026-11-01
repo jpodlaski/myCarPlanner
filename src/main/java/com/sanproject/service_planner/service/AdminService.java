@@ -13,7 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
-// Admin account CRUD; new admins default to the ADMIN role when none is supplied.
+/** Admin account CRUD; new admins default to the ADMIN role when none is supplied. */
 @Service
 public class AdminService {
 

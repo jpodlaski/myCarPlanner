@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../../services/api";
 import { clearSession } from "../../services/auth";
-import "../../components/DashboardLayout.css";
-import "./AuthShell.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
+import AuthLayout from "../../components/AuthLayout";
 
 export default function ConfirmAccountDeletion() {
     const [searchParams] = useSearchParams();
@@ -51,24 +48,20 @@ export default function ConfirmAccountDeletion() {
         };
     }, [token]);
 
+    const links = [{ to: "/", label: "Back to home" }];
+    if (!message) links.push({ to: "/login", label: "Sign in" });
+
     return (
-        <div className="auth-shell">
-            <ThemeToggle className="theme-toggle-auth" />
-            <div className="auth-shell-panel">
-                <Link to="/" className="logo" aria-label="myCarPlanner home">
-                    <Logo />
-                </Link>
-                <h1>Delete account</h1>
-                {loading && (
-                    <p className="auth-shell-lede">Confirming account deletion…</p>
-                )}
-                {message && <p className="form-success">{message}</p>}
-                {error && <p className="form-error">{error}</p>}
-                <div className="auth-links">
-                    <Link to="/">Back to home</Link>
-                    {!message && <Link to="/login">Sign in</Link>}
-                </div>
+        <AuthLayout title="Delete account" links={links}>
+            <div role="status">
+                {loading && <p className="message message-info">Confirming account deletion…</p>}
+                {message && <p className="message message-success">{message}</p>}
             </div>
-        </div>
+            {error && (
+                <p className="message message-error" role="alert">
+                    {error}
+                </p>
+            )}
+        </AuthLayout>
     );
 }

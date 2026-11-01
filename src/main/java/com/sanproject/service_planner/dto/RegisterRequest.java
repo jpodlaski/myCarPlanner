@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-// Client self-registration; VIN and security code are not required at signup.
+/** Client self-registration; the account must verify its email before signing in. */
 public class RegisterRequest {
 
     @NotBlank(message = "First name is required")

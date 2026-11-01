@@ -1,18 +1,16 @@
-/**
- * Role string constants for the React UI.
- * Must match EmployeeRole on the backend (JWT claim "role" is compared to these arrays).
- */
-// Must stay in sync with EmployeeRole.canManageWorkers() on the backend.
+/** Role names from the JWT "role" claim; must match EmployeeRole on the backend. */
+
+/** Mirrors EmployeeRole.canManageWorkers(). */
 export const MANAGEMENT_ROLES = ["ADMIN", "CEO", "COO"];
 
-// Roles that use the employee dashboard to claim and manage bookings.
+/** Roles that use the employee dashboard. */
 export const WORKSHOP_ROLES = [
     "CLIENT_SERVICE_CONSULTANT",
     "MECHANIC",
     "APPRENTICE_MECHANIC",
 ];
 
-// Roles offered when creating a worker; excludes ADMIN (back-office only).
+/** Roles offered when creating a worker; ADMIN is back-office only. */
 export const ASSIGNABLE_ROLES = [
     "CEO",
     "COO",

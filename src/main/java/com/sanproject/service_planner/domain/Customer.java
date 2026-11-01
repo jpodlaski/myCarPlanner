@@ -9,9 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
-/**
- * Client account. @JsonIgnore on getPasswordHash prevents leaking BCrypt hashes in JSON responses.
- */
+/** Client account. */
 @Entity
 public class Customer {
 

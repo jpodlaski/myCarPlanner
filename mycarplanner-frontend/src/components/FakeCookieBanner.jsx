@@ -4,8 +4,7 @@ import "./FakeCookieBanner.css";
 const STORAGE_KEY = "mycarplanner-cookie-easter-egg";
 
 /**
- * Looks like a cookie banner. Decline does nothing useful.
- * Accept summons Psyduck for two seconds.
+ * Joke cookie banner: no cookies are set. Accept shows Psyduck for two seconds.
  */
 export default function FakeCookieBanner() {
   const [visible, setVisible] = useState(() => {
@@ -27,7 +26,7 @@ export default function FakeCookieBanner() {
     try {
       sessionStorage.setItem(STORAGE_KEY, "1");
     } catch {
-      /* ignore */
+      // Storage blocked: the banner just reappears next visit.
     }
     setVisible(false);
   }
@@ -42,20 +41,20 @@ export default function FakeCookieBanner() {
   return (
     <>
       {visible && (
-        <div className="fake-cookie-banner" role="dialog" aria-label="Cookie notice">
+        <section className="fake-cookie-banner" aria-label="Cookie notice">
           <p className="fake-cookie-copy">
             We use cookies to improve your experience on this site. You can accept or decline
             non-essential cookies.
           </p>
           <div className="fake-cookie-actions">
-            <button type="button" className="fake-cookie-decline" onClick={dismiss}>
+            <button type="button" className="button button-neutral button-small" onClick={dismiss}>
               Decline
             </button>
-            <button type="button" className="fake-cookie-accept" onClick={accept}>
+            <button type="button" className="button button-primary button-small" onClick={accept}>
               Accept
             </button>
           </div>
-        </div>
+        </section>
       )}
       {showPsyduck && (
         <div className="fake-cookie-psyduck" aria-hidden="true">

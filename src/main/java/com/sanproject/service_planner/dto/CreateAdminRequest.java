@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-// New management account; role defaults to ADMIN when omitted.
+/** New management account; role defaults to ADMIN when omitted. */
 public class CreateAdminRequest {
 
     @NotBlank(message = "First name is required")

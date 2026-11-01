@@ -5,8 +5,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
- * BCrypt password hashing. BCrypt is designed to be slow on purpose (work factor),
- * which makes brute-force attacks expensive. We store only the hash, never the raw password.
+ * BCrypt password hashing; only the hash is ever stored.
  */
 @Service
 public class PasswordService {

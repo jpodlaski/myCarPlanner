@@ -2,7 +2,6 @@ package com.sanproject.service_planner.catalog;
 
 import java.util.List;
 
-// One Aston Martin model family (e.g. DBX); availableYears is computed at catalog load.
 public class ModelLine {
 
     private String id;

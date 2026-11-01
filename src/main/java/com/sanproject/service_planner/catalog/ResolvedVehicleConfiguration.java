@@ -1,6 +1,6 @@
 package com.sanproject.service_planner.catalog;
 
-// Immutable snapshot of all catalog fields for one configurationId.
+/** Immutable snapshot of all catalog fields for one configurationId. */
 public class ResolvedVehicleConfiguration {
 
     private final String configurationId;

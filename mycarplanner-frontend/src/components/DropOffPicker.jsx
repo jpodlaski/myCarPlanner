@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import "./DropOffPicker.css";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -34,6 +34,15 @@ function monthLabel(year, monthIndex) {
     });
 }
 
+function fullDateLabel(date) {
+    return date.toLocaleDateString(undefined, {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+    });
+}
+
 function buildMonthCells(year, monthIndex) {
     // Monday-first grid; cells are Date or null for padding.
     const first = new Date(year, monthIndex, 1);
@@ -55,7 +64,7 @@ function buildMonthCells(year, monthIndex) {
 
 /**
  * Workshop drop-off picker: month calendar + time chips (06:00–20:00).
- * Past days are disabled; optional — leave empty and use availability notes instead.
+ * Past days, and earlier slots today, are disabled.
  */
 export default function DropOffPicker({
     dateValue,
@@ -66,6 +75,8 @@ export default function DropOffPicker({
     endHour = 20,
     stepMinutes = 30,
 }) {
+    const monthId = useId();
+    const timeHeadingId = useId();
     const today = useMemo(() => startOfDay(new Date()), []);
     const timeSlots = useMemo(
         () => buildTimeSlots(startHour, endHour, stepMinutes),
@@ -113,7 +124,7 @@ export default function DropOffPicker({
 
     return (
         <div className="dropoff-picker">
-            <div className="dropoff-calendar" aria-label="Drop-off calendar">
+            <div className="dropoff-calendar" role="group" aria-labelledby={monthId}>
                 <div className="dropoff-cal-header">
                     <button
                         type="button"
@@ -122,16 +133,18 @@ export default function DropOffPicker({
                         disabled={!canGoPrev}
                         aria-label="Previous month"
                     >
-                        ‹
+                        <span className="dropoff-nav-icon dropoff-nav-prev" aria-hidden="true" />
                     </button>
-                    <p className="dropoff-month-label">{monthLabel(viewYear, viewMonth)}</p>
+                    <p id={monthId} className="dropoff-month-label" aria-live="polite">
+                        {monthLabel(viewYear, viewMonth)}
+                    </p>
                     <button
                         type="button"
                         className="dropoff-nav-btn"
                         onClick={() => shiftMonth(1)}
                         aria-label="Next month"
                     >
-                        ›
+                        <span className="dropoff-nav-icon dropoff-nav-next" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -141,10 +154,10 @@ export default function DropOffPicker({
                     ))}
                 </div>
 
-                <div className="dropoff-grid" role="grid" aria-label={monthLabel(viewYear, viewMonth)}>
+                <div className="dropoff-grid">
                     {cells.map((date, index) => {
                         if (!date) {
-                            return <span key={`empty-${index}`} className="dropoff-day empty" />;
+                            return <span key={`empty-${index}`} className="dropoff-day empty" aria-hidden="true" />;
                         }
                         const key = toDateKey(date);
                         const disabled = startOfDay(date) < today;
@@ -155,14 +168,15 @@ export default function DropOffPicker({
                             <button
                                 key={key}
                                 type="button"
-                                role="gridcell"
                                 className={[
                                     "dropoff-day",
                                     selected ? "selected" : "",
                                     isToday ? "today" : "",
                                 ].filter(Boolean).join(" ")}
                                 disabled={disabled}
-                                aria-selected={selected}
+                                aria-pressed={selected}
+                                aria-current={isToday ? "date" : undefined}
+                                aria-label={fullDateLabel(date)}
                                 onClick={() => onDateChange(selected ? "" : key)}
                             >
                                 {date.getDate()}
@@ -172,14 +186,16 @@ export default function DropOffPicker({
                 </div>
             </div>
 
-            <div className="dropoff-time-panel">
-                <p className="dropoff-time-heading">
-                    {selectedLabel
-                        ? `Time · ${selectedLabel}`
-                        : "Time · pick a date first"}
+            <div className="dropoff-time-panel" role="group" aria-labelledby={timeHeadingId}>
+                <p id={timeHeadingId} className="dropoff-time-heading">
+                    {selectedLabel ? `Time on ${selectedLabel}` : "Time"}
                 </p>
-                <p className="dropoff-time-hours">Workshop hours 06:00–20:00</p>
-                <div className="dropoff-time-grid" role="listbox" aria-label="Drop-off time">
+                <p className="dropoff-time-hours">
+                    {selectedLabel
+                        ? `Workshop hours ${pad2(startHour)}:00–${pad2(endHour)}:00`
+                        : "Pick a date first."}
+                </p>
+                <div className="dropoff-time-grid">
                     {timeSlots.map((slot) => {
                         const selected = slot === timeValue;
                         const disabled = isSlotDisabled(slot);
@@ -187,8 +203,7 @@ export default function DropOffPicker({
                             <button
                                 key={slot}
                                 type="button"
-                                role="option"
-                                aria-selected={selected}
+                                aria-pressed={selected}
                                 className={`dropoff-time-slot${selected ? " selected" : ""}`}
                                 disabled={disabled}
                                 onClick={() => onTimeChange(selected ? "" : slot)}

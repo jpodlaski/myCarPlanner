@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import AppShell from "../../components/AppShell";
 import DropOffPicker from "../../components/DropOffPicker";
 import { api } from "../../services/api";
-import { getSession } from "../../services/auth";
-import "../../components/DashboardLayout.css";
-import "./ClientDashboard.css";
-import "./AddVehicle.css";
+import { clearSession, getSession } from "../../services/auth";
 import "./RequestService.css";
-import Logo from "../../components/Logo";
-import ThemeToggle from "../../components/ThemeToggle";
 
 const MAX_DESCRIPTION_WORDS = 500;
 
@@ -40,7 +36,7 @@ function friendlyBookingError(message) {
     return message;
 }
 
-// Creates a SCHEDULED booking; estimated drop-off date and time are required.
+/** Creates a SCHEDULED booking; estimated drop-off date and time are required. */
 export default function RequestService() {
     const navigate = useNavigate();
     const session = getSession();
@@ -58,6 +54,11 @@ export default function RequestService() {
     const [availabilityNotes, setAvailabilityNotes] = useState("");
 
     const descriptionWords = useMemo(() => wordCount(description), [description]);
+
+    const logout = () => {
+        clearSession();
+        navigate("/");
+    };
 
     const loadVehicles = useCallback(async () => {
         if (!session?.token) return;
@@ -116,138 +117,159 @@ export default function RequestService() {
         }
     };
 
+    const descriptionAtLimit = descriptionWords >= MAX_DESCRIPTION_WORDS;
+
     return (
-        <div className="client-dashboard-shell">
-            <div className="dashboard client-dashboard add-vehicle-page request-service-page">
-                <div className="dashboard-header">
+        <AppShell
+            pageTitle="Request service"
+            title="Garage"
+            homeTo="/client"
+            userName={session?.name}
+            onSignOut={logout}
+            localAction={
+                <Link to="/client" className="link-chevron link-chevron-back local-nav-back">
+                    Back to Garage
+                </Link>
+            }
+        >
+            <header className="page-header">
+                <h1 className="page-title">Request service</h1>
+                <p className="page-lede">
+                    Tell us what needs attention and when you can bring the car in. A consultant
+                    confirms the appointment.
+                </p>
+            </header>
+
+            {loading && (
+                <p className="status-text" role="status">
+                    Loading…
+                </p>
+            )}
+
+            {!loading && vehicles.length === 0 && (
+                <div className="empty-state stack">
+                    <p>Add a vehicle to your account before submitting a service request.</p>
                     <div>
-                        <Logo className="logo" />
-                        <h1>Request service</h1>
-                    </div>
-                    <div className="dashboard-header-actions">
-                        <ThemeToggle />
                         <button
                             type="button"
-                            className="logout-btn"
-                            onClick={() => navigate("/client")}
-                        >
-                            Back to dashboard
-                        </button>
-                    </div>
-                </div>
-
-                {loading && <p className="request-service-status">Loading…</p>}
-
-                {!loading && vehicles.length === 0 && (
-                    <div className="request-service-empty">
-                        <p>Add a vehicle to your account before submitting a service request.</p>
-                        <button
-                            type="button"
-                            className="submit-vehicle-btn"
+                            className="button button-primary"
                             onClick={() => navigate("/client/add-vehicle")}
                         >
                             Add a vehicle
                         </button>
                     </div>
-                )}
+                </div>
+            )}
 
-                {!loading && vehicles.length > 0 && (
-                    <form className="request-service-form" onSubmit={submitBooking} noValidate>
-                        <label className="request-field">
-                            <span className="request-label">Vehicle</span>
-                            <select
-                                value={vehicleId}
-                                onChange={(e) => setVehicleId(e.target.value)}
-                                required
-                            >
-                                {vehicles.map((v) => (
-                                    <option key={v.id} value={v.id}>
-                                        {v.modelLine ?? v.model}
-                                        {v.productionYear ? ` · ${v.productionYear}` : ""}
-                                        {" · "}
-                                        {v.vin}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <label className="request-field">
-                            <span className="request-label">Describe the issue</span>
-                            <textarea
-                                placeholder="What should the workshop look at?"
-                                rows={4}
-                                value={description}
-                                maxLength={2000}
-                                onChange={(e) => {
-                                    setDescription(
-                                        truncateToMaxWords(e.target.value, MAX_DESCRIPTION_WORDS)
-                                    );
-                                }}
-                                required
-                            />
-                            <span className={`request-word-count${descriptionWords >= MAX_DESCRIPTION_WORDS ? " at-limit" : ""}`}>
-                                {descriptionWords} / {MAX_DESCRIPTION_WORDS} words
-                            </span>
-                        </label>
-
-                        <fieldset
-                            className={`request-field request-dropoff${scheduleError ? " has-error" : ""}`}
+            {!loading && vehicles.length > 0 && (
+                <form className="request-form" onSubmit={submitBooking} noValidate>
+                    <label className="field">
+                        <span className="field-label">Vehicle</span>
+                        <select
+                            className="select"
+                            value={vehicleId}
+                            onChange={(e) => setVehicleId(e.target.value)}
                         >
-                            <legend className="request-label">Estimated drop-off</legend>
-                            <DropOffPicker
-                                dateValue={dropOffDate}
-                                timeValue={dropOffClock}
-                                onDateChange={(next) => {
-                                    setDropOffDate(next);
-                                    setDropOffClock("");
-                                    setScheduleError("");
-                                }}
-                                onTimeChange={(next) => {
-                                    setDropOffClock(next);
-                                    setScheduleError("");
-                                }}
-                                startHour={6}
-                                endHour={20}
-                            />
-                        </fieldset>
+                            {vehicles.map((v) => (
+                                <option key={v.id} value={v.id}>
+                                    {v.modelLine ?? v.model}
+                                    {v.productionYear ? ` · ${v.productionYear}` : ""}
+                                    {" · "}
+                                    {v.vin}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
 
-                        <label className="request-field">
-                            <span className="request-label">Availability notes</span>
-                            <input
-                                placeholder="Optional — e.g. call if running late"
-                                value={availabilityNotes}
-                                onChange={(e) => setAvailabilityNotes(e.target.value)}
-                            />
-                        </label>
+                    <label className="field">
+                        <span className="field-label">Describe the issue</span>
+                        <textarea
+                            className="textarea"
+                            placeholder="What should the workshop look at?"
+                            rows={4}
+                            value={description}
+                            maxLength={2000}
+                            aria-describedby="description-count"
+                            onChange={(e) => {
+                                setDescription(
+                                    truncateToMaxWords(e.target.value, MAX_DESCRIPTION_WORDS)
+                                );
+                            }}
+                            required
+                        />
+                        <span
+                            id="description-count"
+                            className={descriptionAtLimit ? "field-error" : "field-hint"}
+                        >
+                            {descriptionWords} of {MAX_DESCRIPTION_WORDS} words
+                        </span>
+                    </label>
 
-                        <p className="request-hint">
-                            A drop-off date and time are required. Notes are optional.
+                    <fieldset
+                        className={`request-fieldset${scheduleError ? " has-error" : ""}`}
+                        aria-describedby={scheduleError ? "schedule-error" : undefined}
+                    >
+                        <legend className="field-label">
+                            Estimated drop-off <span className="field-required">(required)</span>
+                        </legend>
+                        <DropOffPicker
+                            dateValue={dropOffDate}
+                            timeValue={dropOffClock}
+                            onDateChange={(next) => {
+                                setDropOffDate(next);
+                                setDropOffClock("");
+                                setScheduleError("");
+                            }}
+                            onTimeChange={(next) => {
+                                setDropOffClock(next);
+                                setScheduleError("");
+                            }}
+                            startHour={6}
+                            endHour={20}
+                        />
+                    </fieldset>
+
+                    {scheduleError && (
+                        <p id="schedule-error" className="message message-error" role="alert">
+                            {scheduleError}
                         </p>
+                    )}
 
-                        {scheduleError && (
-                            <p className="request-schedule-error" role="alert">
-                                {scheduleError}
-                            </p>
-                        )}
+                    <label className="field">
+                        <span className="field-label">
+                            Availability notes <span className="field-required">(optional)</span>
+                        </span>
+                        <input
+                            className="input"
+                            placeholder="e.g. call if running late"
+                            value={availabilityNotes}
+                            onChange={(e) => setAvailabilityNotes(e.target.value)}
+                        />
+                    </label>
 
-                        <div className="request-actions">
-                            <button
-                                type="submit"
-                                className="submit-vehicle-btn"
-                                disabled={submitting}
-                            >
-                                {submitting ? "Submitting…" : "Submit request"}
-                            </button>
-                        </div>
+                    {error && (
+                        <p className="message message-error" role="alert">
+                            {error}
+                        </p>
+                    )}
 
-                        {error && <p className="config-error" role="alert">{error}</p>}
-                    </form>
-                )}
+                    <div className="button-row">
+                        <button
+                            type="submit"
+                            className="button button-primary"
+                            disabled={submitting}
+                        >
+                            {submitting ? "Submitting…" : "Submit request"}
+                        </button>
+                    </div>
+                </form>
+            )}
 
-                {!session?.token && (
-                    <p className="config-error">You must be signed in to request service.</p>
-                )}
-            </div>
-        </div>
+            {!session?.token && (
+                <p className="message message-error" role="alert">
+                    You must be signed in to request service.
+                </p>
+            )}
+        </AppShell>
     );
 }

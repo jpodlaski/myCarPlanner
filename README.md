@@ -1,387 +1,432 @@
 # myCarPlanner
 
-Web application for planning vehicle service at a workshop. Clients register, add Aston Martin vehicles, and request service. A **consultant** confirms the appointment; a **mechanic** (or apprentice) claims the job, updates the work plan, and completes service. Management creates workshop accounts. Branded notification emails are sent at each step; completion includes a PDF invoice.
+Service booking for the Hussarya workshop in Łódź. Owners of a Hussarya Thunder, Bastion or Zefir
+register their car, request a service, and follow the job from appointment to pickup. Workshop
+staff confirm appointments, claim and complete jobs, and every step is emailed to the customer,
+ending with a PDF invoice.
+
+- [Who uses it](#who-uses-it)
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
+- [Demo walkthrough](#demo-walkthrough)
+- [How it works](#how-it-works)
+- [API](#api)
+- [Configuration](#configuration)
+- [Development](#development)
+- [Project layout](#project-layout)
 
 ---
 
-## Stack
+## Who uses it
 
-| Layer | Technology |
-|-------|------------|
-| API | Spring Boot 4, Java 21, Spring Security (JWT), JPA, Flyway |
+| Who | Signs in at | Can |
+|-----|-------------|-----|
+| **Client** | `/login` (email) | Register and verify email; add and remove vehicles from the Hussarya catalog; request service with a drop-off time; cancel open bookings; download invoices; change password; delete the account |
+| **Client service consultant** | `/employee-login` | Review incoming requests; accept with an appointment time (checked against free mechanic capacity), reject, or cancel; see workshop progress and the archive |
+| **Mechanic / apprentice mechanic** | `/employee-login` | Claim confirmed jobs; update the work plan and estimate; complete with a final cost (generates the invoice); cancel their own job |
+| **Management** (`ADMIN`, `CEO`, `COO`) | `/employee-login` | Create workers, change their roles, delete them; search the full booking history (paged, 20 per page) |
+
+Workshop: **Sportowa 31, Łódź, Poland**, open **06:00–20:00** for drop-off and pickup.
+
+---
+
+## Tech stack
+
+| Part | Technology |
+|------|------------|
+| API | Java 21, Spring Boot 4, Spring Security (stateless JWT), Spring Data JPA, Flyway |
 | Database | PostgreSQL 16 |
-| Rate limiting | Redis 7 (sliding window per IP / user) |
-| Frontend | React (Vite), Axios, React Router |
-| Email rendering | Clojure HTTP service (`clojure/email-renderer`) |
-| Local SMTP | MailHog |
-| CI | GitHub Actions (Maven tests + frontend lint/build) |
+| Rate limiting | Redis 7, sliding window per IP and per user |
+| Frontend | React 19, Vite 8, React Router 7, Axios |
+| Emails | Clojure service (Ring + Jetty) that renders HTML and plain text, sent over SMTP |
+| Invoices | PDFBox 3 |
+| Local mail | MailHog |
+| CI | GitHub Actions |
 
 ---
 
-## Features
+## Getting started
 
-- **Clients** — register (email verification), login, forgot/reset password, change password, account deletion (email confirm), add/remove vehicles from catalog, request service, cancel bookings (reason required), download invoice for completed jobs, archive of past bookings
-- **Consultants** — accept incoming requests (set appointment → ready for work), reject or cancel with reason, view workshop progress and archive
-- **Mechanics / apprentices** — claim ready jobs, update work plan and estimated cost, complete with final cost (invoice), cancel assigned work
-- **Management** (`ADMIN`, `CEO`, `COO`) — create/update/delete workers, view all bookings
-- **Auth** — BCrypt passwords, Bearer JWT; actor identity always from the token (not from request body IDs)
-- **Emails** — async outbox → Clojure HTML/text templates → SMTP (MailHog locally); completion attaches a branded PDF invoice
-- **Schema** — Flyway migrations; Hibernate `validate` only
-- **UI** — light / dark theme; follows the OS until you toggle it, then remembers your choice
-
----
-
-## Quick start
-
-Build the API JAR, then start the full stack:
+**Requirements:** Docker with Compose, and JDK 21 to build the API jar. Node and the Clojure CLI
+are only needed if you work on those parts outside Docker.
 
 ```bash
 ./mvnw package -DskipTests
 docker compose up --build
 ```
 
-Six containers should be running (`db-init` exits once it has created the databases):
+The API image runs the jar from `target/`, so build it first. Once the stack is up:
 
-| Service | URL |
-|---------|-----|
+| Service | Address |
+|---------|---------|
+| Web app | http://localhost:5173 |
 | API | http://localhost:8080 |
-| Frontend | http://localhost:5173 |
-| MailHog UI | http://localhost:8025 |
+| MailHog (all outgoing mail) | http://localhost:8025 |
 | Email renderer | http://localhost:3000 |
-| Postgres | `localhost:5432` (`mycarplanner_db`) |
+| PostgreSQL | `localhost:5432`, database `mycarplanner_db`, user/password `postgres` |
 | Redis | `localhost:6379` |
 
+`docker compose ps` should list six running containers; `db-init` exits after it creates
+`mycarplanner_db` and `mycarplanner_test`.
+
+### Demo accounts and data
+
+On an empty database the API creates ready-to-use accounts, so a demo can start on any screen:
+
+| Who | Signs in at | Login | Password |
+|-----|-------------|-------|----------|
+| Admin | `/employee-login` | `admin` | `admin` |
+| CEO (management) | `/employee-login` | `ceo` | `secret123` |
+| Client service consultant | `/employee-login` | `consultant1` | `secret123` |
+| Mechanic | `/employee-login` | `mechanic1` | `secret123` |
+| Apprentice mechanic | `/employee-login` | `apprentice1` | `secret123` |
+| Client with a Thunder and a Bastion | `/login` | `anna.nowak@example.com` | `secret123` |
+| Client with a Zefir | `/login` | `jan.kowalski@example.com` | `secret123` |
+
+Both clients are already verified, and there is one booking in every status, dated around the day
+the database was created:
+
+| Status | Booking |
+|--------|---------|
+| `SCHEDULED` | Anna's Bastion, waiting for the consultant to accept |
+| `READY_FOR_WORK` | Jan's Zefir, appointment tomorrow at 10:00, waiting for a mechanic to claim it |
+| `IN_PROGRESS` | Anna's Thunder, today, assigned to `mechanic1` |
+| `COMPLETED` | Anna's Thunder two weeks ago, final cost 1375.50 EUR, invoice ready to download |
+| `CANCELLED` | One rejected by the workshop (Jan) and one cancelled by the client (Anna) |
+
+The demo data is written straight to the database, so it sends no emails. It is only added while
+there are no workers and no customers; if your database already has data, reset it (below) to get
+it. Set `APP_DEMO_DATA=false` to start with only the `admin` account.
+
+### Resetting the database
+
 ```bash
-docker compose ps
-```
-
-### Seeded account
-
-On an empty database:
-
-| Role | Login | Password |
-|------|-------|----------|
-| Admin | `admin` | `admin` |
-
-Clients self-register in the UI. Consultants and mechanics are created from the management dashboard (intentional — demo starts from zero).
-
-### Fresh database
-
-```bash
-docker compose down
+docker compose down        # stop Postgres first, or the data directory can be left corrupted
 rm -rf pgdata
 ./mvnw package -DskipTests
 docker compose up --build
 ```
 
-> **Rebrand note:** the databases were renamed to `mycarplanner_db` / `mycarplanner_test` and browser storage keys to `mycarplanner_*`. Existing local data is not migrated: run `docker compose down && rm -rf pgdata` once and sign in again.
-
-Stop containers **before** deleting `pgdata` (otherwise Postgres can leave a corrupted data directory). The API waits until Postgres is healthy, then seeds `admin` / `admin` on an empty DB.
+Day to day, `docker compose stop` and `docker compose start` keep your data.
 
 ---
 
 ## Demo walkthrough
 
-1. Open http://localhost:5173/register — create a client account.
-2. Open http://localhost:8025 — open the verification email and click the link (or copy the token URL).
-3. Sign in at http://localhost:5173/login with the verified account.
-4. Add a vehicle (`/client/add-vehicle`) using the Aston Martin catalog.
-5. Request service (`/client/request-service`) with drop-off time and availability notes (if there are any).
-6. Sign out → http://localhost:5173/employee-login — log in as `admin` / `admin`.
-7. On the management dashboard, create:
-   - a **client service consultant**
-   - a **mechanic** (or apprentice)
-8. Sign out → log in as the **consultant** → accept the request and set an appointment time (status → `READY_FOR_WORK`). Client receives **appointment confirmed**.
-9. Sign out → log in as the **mechanic** → claim the job (client receives **drop off your vehicle**), update work planned if needed, complete with a final cost (invoice PDF).
-10. Open http://localhost:8025 — check the email sequence. Client can also download the invoice from Bookings → Archive.
+**Quick tour with the demo data:** sign in as `consultant1` and accept Anna's Bastion request;
+sign in as `mechanic1` and claim it, or complete the Thunder job already in progress; then sign
+in as `anna.nowak@example.com` to see the bookings, the archive and the invoice.
 
-Forgot password: `/forgot-password` → check MailHog → `/reset-password?token=…`.
+**Full flow from scratch**, including registration and every email:
 
-Account deletion: client Account section → confirm via email link → `/confirm-account-deletion?token=…`.
+1. Register a client at http://localhost:5173/register.
+2. Open the verification email in MailHog (http://localhost:8025) and follow the link.
+3. Sign in at http://localhost:5173/login.
+4. **Vehicles → Add vehicle**: pick a model, body, engine, transmission and year, then enter a VIN.
+5. **Request service**: choose the car, describe the issue and pick a drop-off date and time.
+6. Sign out and sign in at http://localhost:5173/employee-login as `admin` / `admin`. Use the
+   demo staff, or create your own **client service consultant** and **mechanic**.
+7. Sign in as the consultant and accept the request with an appointment time.
+   The client gets *appointment confirmed*.
+8. Sign in as the mechanic and claim the job. The client gets *drop off your vehicle*.
+   Optionally update the work plan, then complete it with a final cost.
+9. The client gets *service completed* with the invoice attached, and can download it again
+   from **Bookings → Archive**.
 
-Any signed-in user can change their password from their dashboard.
+Also try **Forgot password** on the sign-in page, **Account → Delete account** (confirmed by email),
+and the light/dark switch in the top bar.
 
 ---
 
-## Architecture
+## How it works
 
 ```
-Client / Staff UI (React)
-        │  Bearer JWT
-        ▼
-   Spring Boot API
-        │
-        ├── PostgreSQL (Flyway schema)
-        ├── Email renderer (Clojure) ──► HTML/text bodies
-        └── SMTP (MailHog in dev) ──► emails + optional PDF
+React app ──Bearer JWT──► Spring Boot API ──► PostgreSQL
+                                │
+                                ├──► Redis (rate-limit counters)
+                                ├──► Clojure email renderer ──► subject, HTML and text
+                                └──► SMTP (MailHog locally) ──► email, plus invoice PDF
 ```
 
-**Booking lifecycle**
+### Booking lifecycle
 
 ```
-SCHEDULED ──consultant accept──► READY_FOR_WORK ──mechanic claim──► IN_PROGRESS ──complete──► COMPLETED
-    │                │                    │                              │
-    │ reject         │ cancel             │ cancel                       │
-    └────────────────┴────────────────────┴──────────────────────────────┴──► CANCELLED
+SCHEDULED ──consultant accepts──► READY_FOR_WORK ──mechanic claims──► IN_PROGRESS ──completes──► COMPLETED
+    │                                   │                                  │
+    │ reject / cancel                   │ cancel                           │ cancel
+    └───────────────────────────────────┴──────────────────────────────────┴──► CANCELLED
 ```
 
 | Status | Meaning |
 |--------|---------|
-| `SCHEDULED` | Client request awaiting consultant |
-| `READY_FOR_WORK` | Appointment confirmed; waiting for a technician |
-| `IN_PROGRESS` | Claimed by a mechanic / apprentice |
-| `COMPLETED` | Finished; invoice available |
-| `CANCELLED` | Rejected or cancelled (client, consultant, or worker) |
+| `SCHEDULED` | Client request waiting for a consultant |
+| `READY_FOR_WORK` | Appointment confirmed; waiting for a mechanic to claim it |
+| `IN_PROGRESS` | Claimed by a mechanic or apprentice |
+| `COMPLETED` | Done; invoice available |
+| `CANCELLED` | Rejected by the workshop, or cancelled by the client, consultant or mechanic. A reason is always required |
 
-Workshop hours for drop-off / pickup: **06:00–20:00** (Sportowa 31, Łódź).
+Claims and accepts lock the booking row (`SELECT … FOR UPDATE`), so two mechanics claiming the
+same job at once cannot both succeed.
+
+### Emails and invoices
+
+Every state change writes a `PENDING` row to `email_outbox` in the same transaction. After the
+commit the API asks the Clojure renderer (`POST /render/booking-email` or
+`/render/customer-email`) for the subject, HTML and text, then sends the email. If rendering or
+SMTP fails, or the API crashes, a poller retries the row with increasing delays until it reaches
+`max_attempts` and is marked `FAILED`.
+
+| Event | Sent when |
+|-------|-----------|
+| `customer_registered`, `email_verification` | Sign-up, or a new verification link is requested |
+| `password_reset`, `password_changed` | Reset requested, or password changed |
+| `account_deletion`, `account_deleted` | Deletion requested, then confirmed |
+| `vehicle_added`, `vehicle_removed` | A car is added or removed |
+| `created` | Client submits a request |
+| `appointment_scheduled` | Consultant confirms the appointment |
+| `technician_assigned` | Mechanic claims the job; asks the client to drop the car off |
+| `work_plan_updated` | Mechanic changes the planned work or estimate |
+| `booking_rejected`, `booking_cancelled` | Workshop declines, or anyone cancels |
+| `booking_completed` | Job done; invoice PDF attached, pickup hours included |
+
+Emails and the invoice use the same look as the web app: white cards on `#f5f5f7`, `#1d1d1f`
+text, blue `#0071e3` pill buttons and the Hussarya logo (`email/logo.png`, kept identical in
+`src/main/resources` and the renderer's `resources`). Mail clients that support it get a dark
+version. The invoice is generated by `InvoicePdfService`, both for the completion email and
+`GET /bookings/{id}/invoice`.
+
+The invoice follows the Polish VAT invoice layout (*faktura VAT*):
+
+- **Number.** Completing a job assigns the next number from a database sequence, `FV/2026/000042`.
+  The number and issue date are stored on the booking, so a re-downloaded invoice is identical.
+- **Seller and buyer.** The seller block shows the company name, address and NIP; the buyer block
+  shows the client's name and email.
+- **Dates.** The issue date and the date of service both use the completion date.
+- **Amounts.** The final cost is VAT-inclusive. The invoice shows net, VAT (23% by default) and
+  gross, with net rounded to the cent and VAT taken as the difference, so the two always add up to
+  the total.
+
+### Security
+
+- Passwords are hashed with BCrypt. Email, reset and deletion links use one-time tokens, and only
+  their SHA-256 hashes are stored.
+- Clients cannot sign in until their email is verified.
+- The API is stateless: each request carries `Authorization: Bearer <JWT>`. The acting user always
+  comes from the token, never from ids in the request body, and "me" routes such as
+  `/customers/me/bookings` are preferred.
+- Rate limits are set in `application.properties`. Sign-in, registration and recovery endpoints are
+  strict (3–10 requests per minute per IP); everything else falls back to 600 per minute per caller.
+  If Redis is down, requests are allowed through.
+- Route guards in the React app only improve the experience; the API checks access on every call.
 
 ---
 
-## Authentication
+## API
 
-| Endpoint | Who | Notes |
-|----------|-----|--------|
-| `POST /auth/register` | Public | Creates client (unverified), sends welcome + verify emails |
-| `POST /auth/login` | Public | Client login (email + password); requires verified email |
-| `POST /auth/employee-login` | Public | Worker/admin login (`login` + password) |
-| `POST /auth/forgot-password` | Public | Sends reset link if email exists (generic response) |
-| `POST /auth/reset-password` | Public | Sets new password with one-time token |
-| `POST /auth/verify-email` | Public | Marks client email verified with one-time token |
-| `POST /auth/resend-verification` | Public | Resends verify link if still unverified (generic response) |
-| `POST /auth/change-password` | Authenticated | Current + new password (min 8 chars) |
-| `POST /auth/request-account-deletion` | Client | Sends confirmation email |
-| `POST /auth/confirm-account-deletion` | Public | Deletes account with one-time token |
+Public routes: the `/auth` endpoints below (except change password and account deletion request),
+`GET /vehicles/catalog` and `GET /hello`. Everything else needs a token.
 
-Public routes: the auth endpoints above, `GET /hello`, `GET /vehicles/catalog`. Everything else requires `Authorization: Bearer <token>`.
+### Accounts
 
-Frontend helpers: `/forgot-password`, `/reset-password?token=…`, `/verify-email?token=…`, `/resend-verification`, `/confirm-account-deletion?token=…`. Check MailHog at http://localhost:8025 for links in local demos.
+| Endpoint | Who | Does |
+|----------|-----|------|
+| `POST /auth/register` | Public | Creates an unverified client and emails a verification link |
+| `POST /auth/login` | Public | Client sign-in (`login` = email, `password`); needs a verified email |
+| `POST /auth/employee-login` | Public | Staff sign-in (`login` = login name, `password`) |
+| `POST /auth/verify-email` | Public | Verifies the email with a one-time token |
+| `POST /auth/resend-verification` | Public | Sends a new verification link |
+| `POST /auth/forgot-password` | Public | Emails a reset link (same response whether or not the email exists) |
+| `POST /auth/reset-password` | Public | Sets a new password with a one-time token |
+| `POST /auth/change-password` | Signed in | Changes the password (current password required, minimum 8 characters) |
+| `POST /auth/request-account-deletion` | Client | Emails a confirmation link; open bookings must be closed first |
+| `POST /auth/confirm-account-deletion` | Public | Deletes the account with a one-time token |
 
-JWT payload drives authorization via `AuthSupport`. Prefer self routes: `/vehicles/me`, `/customers/me/bookings`, `/workers/me/bookings`.
+Sign-in returns `{ token, role, id, name }`.
 
-**Roles**
+### Bookings
 
-| Role | Access |
-|------|--------|
-| `CLIENT` | Own vehicles and bookings |
-| `CLIENT_SERVICE_CONSULTANT` | Incoming requests; accept / reject / cancel; workshop overview + archive |
-| `MECHANIC`, `APPRENTICE_MECHANIC` | Claim `READY_FOR_WORK` jobs; work plan; complete / cancel assigned work |
-| `ADMIN`, `CEO`, `COO` | Worker management + all bookings |
+| Endpoint | Who | Does |
+|----------|-----|------|
+| `POST /bookings` | Client | Requests service for one of their cars |
+| `GET /customers/me/bookings` | Client | Their bookings |
+| `POST /bookings/{id}/accept` | Consultant | Sets the appointment, moves to `READY_FOR_WORK` |
+| `POST /bookings/{id}/reject` | Consultant | Declines a `SCHEDULED` request |
+| `POST /bookings/{id}/claim` | Mechanic | Takes a `READY_FOR_WORK` job, moves to `IN_PROGRESS` |
+| `POST /bookings/{id}/work-plan` | Assigned mechanic | Updates services and estimate |
+| `POST /bookings/{id}/complete` | Assigned mechanic | Sets the final cost, moves to `COMPLETED`, issues the invoice number |
+| `POST /bookings/{id}/cancel` | Client, consultant, assigned mechanic | Cancels with a reason |
+| `GET /bookings/{id}/invoice` | Owning client | Invoice PDF for a completed booking |
+| `GET /workers/me/bookings`, `/workers/me/awaiting-workshop`, `/workers/me/consultant-archive` | Staff | Role-specific queues |
+| `GET /workers/me/workshop-capacity` | Consultant | Free mechanics at a proposed appointment time |
 
-Env overrides: `APP_JWT_SECRET` (min 32 characters), `APP_JWT_EXPIRATION_MS` (default 24h).
+Vehicles live under `/vehicles/me` (list, add, history, `vin-available`), and management under
+`/admins` (`/admins/workers`, `/admins/bookings`).
 
----
+`GET /admins/bookings` is paged and searchable: `?page=0&size=20&q=thunder`. `q` matches the
+booking number (`#42`), customer, email, model, VIN, assigned worker, description, cancellation
+reason or status (`in progress`). Results are newest first:
 
-## Booking API
+```json
+{ "items": [ ... ], "page": 0, "size": 20, "totalItems": 57, "totalPages": 3 }
+```
 
-Identity of the acting user always comes from the JWT.
+### Example with curl
 
 ```bash
-# Client token
-CLIENT_TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"login":"you@example.com","password":"yourpassword"}' \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])")
+token() {  # usage: token <endpoint> <login> <password>
+  curl -s -X POST "http://localhost:8080/auth/$1" -H 'Content-Type: application/json' \
+    -d "{\"login\":\"$2\",\"password\":\"$3\"}" \
+    | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])"
+}
 
-# Create booking (vehicle must belong to the client)
+CLIENT=$(token login you@example.com yourpassword)
+CONSULTANT=$(token employee-login consultant1 secret123)
+MECHANIC=$(token employee-login mechanic1 secret123)
+
 curl -s -X POST http://localhost:8080/bookings \
-  -H "Authorization: Bearer $CLIENT_TOKEN" \
-  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $CLIENT" -H 'Content-Type: application/json' \
   -d '{"vehicleId":1,"customerDescription":"Noise when braking","estimatedDropOffTime":"2026-06-15T10:30:00","availabilityNotes":"Tuesday mornings"}'
 
-# Consultant accepts and sets appointment → READY_FOR_WORK
-CONSULTANT_TOKEN=$(curl -s -X POST http://localhost:8080/auth/employee-login \
-  -H 'Content-Type: application/json' \
-  -d '{"login":"consultant1","password":"secret123"}' \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])")
-
 curl -s -X POST http://localhost:8080/bookings/1/accept \
-  -H "Authorization: Bearer $CONSULTANT_TOKEN" \
-  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $CONSULTANT" -H 'Content-Type: application/json' \
   -d '{"scheduledDateTime":"2026-06-16T14:00:00"}'
 
-# Mechanic claims → IN_PROGRESS
-MECHANIC_TOKEN=$(curl -s -X POST http://localhost:8080/auth/employee-login \
-  -H 'Content-Type: application/json' \
-  -d '{"login":"mechanic1","password":"secret123"}' \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])")
-
 curl -s -X POST http://localhost:8080/bookings/1/claim \
-  -H "Authorization: Bearer $MECHANIC_TOKEN" \
-  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $MECHANIC" -H 'Content-Type: application/json' \
   -d '{"estimatedCost":350.00,"serviceTypes":["Brake inspection"]}'
 
-# Optional: update work plan while in progress
-curl -s -X POST http://localhost:8080/bookings/1/work-plan \
-  -H "Authorization: Bearer $MECHANIC_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"estimatedCost":500.00,"serviceTypes":["Brake pads replace"]}'
-
 curl -s -X POST http://localhost:8080/bookings/1/complete \
-  -H "Authorization: Bearer $MECHANIC_TOKEN" \
-  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $MECHANIC" -H 'Content-Type: application/json' \
   -d '{"finalCost":375.50}'
 ```
 
-| Action | Endpoint | Who |
-|--------|----------|-----|
-| Create | `POST /bookings` | Client |
-| Accept (appointment) | `POST /bookings/{id}/accept` | Consultant |
-| Claim | `POST /bookings/{id}/claim` | Mechanic / apprentice |
-| Update work plan | `POST /bookings/{id}/work-plan` | Assigned technician |
-| Complete | `POST /bookings/{id}/complete` | Assigned technician |
-| Reject | `POST /bookings/{id}/reject` | Consultant (unclaimed `SCHEDULED`) |
-| Cancel | `POST /bookings/{id}/cancel` | Client, consultant, or assigned worker |
-| Invoice PDF | `GET /bookings/{id}/invoice` | Owning client (completed only) |
+---
+
+## Configuration
+
+Defaults live in `src/main/resources/application.properties`; `docker-compose.yml` sets the
+container values.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/mycarplanner_db` | Database |
+| `APP_JWT_SECRET` | development value | JWT signing key, at least 32 characters. **Change it outside local demos** |
+| `APP_JWT_EXPIRATION_MS` | `86400000` (24 h) | Token lifetime |
+| `APP_FRONTEND_URL` | `http://localhost:5173` | Base for links in emails |
+| `EMAIL_RENDERER_URL` | `http://localhost:3000` | Clojure renderer |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_FROM` | `mailhog`, `1025`, `noreply@mycarplanner.local` | SMTP |
+| `SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT` | `localhost`, `6379` | Redis |
+| `APP_PASSWORD_RESET_TTL_SECONDS` | `3600` | Reset link lifetime |
+| `APP_EMAIL_VERIFICATION_TTL_SECONDS` | `86400` | Verification link lifetime |
+| `APP_EMAIL_OUTBOX_POLL_MS`, `APP_EMAIL_OUTBOX_BATCH_SIZE` | `5000`, `20` | Outbox retry poller |
+| `APP_DEMO_DATA` | `true` | Seed demo staff, clients, cars and bookings into an empty database |
+| `APP_INVOICE_SELLER_NAME` | `Hussarya Service sp. z o.o.` | Seller name on invoices |
+| `APP_INVOICE_SELLER_NIP` | `123-456-32-18` | Seller NIP on invoices (the default is the standard example number) |
+| `APP_INVOICE_VAT_RATE` | `23` | VAT rate in percent; prices are treated as gross |
+
+Behind a reverse proxy, set `app.rate-limit.trusted-header` (e.g. `X-Real-Ip`) so limits apply to
+the real client IP.
+
+The demo `admin` account (`DemoAuthDataLoader`) and the demo data (`DemoDataLoader`, password
+`secret123` for everyone) are for local demos only; turn them off before any real deployment.
 
 ---
 
-## Emails
+## Development
 
-Branded HTML templates are rendered by the Clojure service. Local delivery is via MailHog.
+### Rebuilding containers
 
-**Booking email sequence**
+| Changed | Run |
+|---------|-----|
+| Java API | `./mvnw package -DskipTests && docker compose up -d --build --force-recreate app` |
+| Email templates | `docker compose up -d --build --force-recreate email-renderer` |
+| Frontend code | Nothing; `mycarplanner-frontend/` is mounted and hot-reloads |
+| Frontend dependencies or Dockerfile | `docker compose up -d --build frontend` |
 
-```
-created → appointment confirmed (consultant accept)
-       → drop off your vehicle (mechanic claim)
-       → work plan updated (optional)
-       → service completed + invoice PDF
-```
-
-| Event | When |
-|-------|------|
-| `customer_registered` | Client signup |
-| `email_verification` | Verify / resend verify |
-| `password_reset` / `password_changed` | Reset flow / password change |
-| `account_deletion` / `account_deleted` | Account deletion request / confirmed |
-| `vehicle_added` / `vehicle_removed` | Vehicle changes |
-| `created` | Service request submitted |
-| `appointment_scheduled` | Consultant accepts — appointment time confirmed; drop-off message comes later |
-| `technician_assigned` | Mechanic claims — please drop off at the scheduled time |
-| `work_plan_updated` | Technician updates planned work / estimate |
-| `booking_rejected` | Consultant declines request |
-| `booking_cancelled` | Client, consultant, or worker cancels |
-| `booking_completed` | Finished — invoice PDF attached; pickup hours noted |
-
-Flow: domain change + `email_outbox` PENDING row commit together → after-commit async send →
-Clojure `POST /render/...` → SMTP. If the process crashes or SMTP fails, a scheduled poller retries
-PENDING rows with backoff (up to `max_attempts`, then `FAILED`).
-
-After changing email templates:
+### Frontend
 
 ```bash
-docker compose up -d --build --force-recreate email-renderer
+cd mycarplanner-frontend
+npm install
+npm run dev     # http://localhost:5173, expects the API on :8080
+npm run lint
+npm run build
 ```
 
----
+The design follows apple.com and targets WCAG 2.2 AA and valid HTML. There are light and dark
+themes (light by default; the choice is saved in `localStorage`). See
+[`mycarplanner-frontend/README.md`](mycarplanner-frontend/README.md) for theming, brand assets and
+accessibility rules.
 
-## Frontend
+Unknown URLs show a "Page not found" page. A top-level error boundary catches rendering errors
+and shows a reload screen instead of a blank page.
 
-Runs in Docker with the stack (no local Node required for the demo). The frontend container bind-mounts `mycarplanner-frontend/`, so UI edits hot-reload.
+### Database
 
-| Page | URL |
-|------|-----|
-| Landing | http://localhost:5173/ |
-| Client login | http://localhost:5173/login |
-| Register | http://localhost:5173/register |
-| Client dashboard | http://localhost:5173/client |
-| Staff login | http://localhost:5173/employee-login |
-| Employee dashboard | http://localhost:5173/employee |
-| Management dashboard | http://localhost:5173/admin |
+Flyway applies `src/main/resources/db/migration/V*.sql` on startup; Hibernate only validates the
+mapping. Add a new `V<n>__description.sql` for every schema change rather than editing old ones.
 
-Optional local UI: `cd mycarplanner-frontend && npm install && npm run dev`
+### Vehicle catalog
 
-### Theming
+Models, body styles, engines and production years come from
+`src/main/resources/hussarya-catalog.json`. When a client adds a car, its specs are copied onto
+the vehicle so later catalog edits don't change past bookings. The marketing copy on the landing
+page (`mycarplanner-frontend/src/constants/models.js`) mirrors this file.
 
-The UI ships a light and a dark palette. Both are CSS custom properties in `src/index.css` (`:root` holds dark, `[data-theme="light"]` holds light), and `src/theme/` owns the switch. The theme follows `prefers-color-scheme` on a first visit; toggling it stores an explicit choice in `localStorage["mycarplanner_theme"]` and stops following the OS. An inline script in `index.html` applies that choice before first paint so there is no flash. Remove the key to fall back to the OS setting.
-
-Brand assets live in `mycarplanner-frontend/public/`. `Logo.jsx` picks `logo.svg` (dark text, for the light theme) or `logo-inverse.svg` (white text, for the dark theme) — regenerate the inverse from `logo.svg` if the logo ever changes. The favicon is `logo.svg`, with `favicon.ico` as the fallback.
-
----
-
-## Database
-
-Migrations: `src/main/resources/db/migration/`. Flyway applies them on startup; Hibernate only validates.
-
-Test database: `mycarplanner_test` (see `src/test/resources/application-test.properties`).
-
----
-
-## Tests
+### Tests
 
 ```bash
-# Create test DB once (Postgres from docker compose is fine)
-docker exec mycarplanner-postgres psql -U postgres -c "CREATE DATABASE mycarplanner_test;"
-
 ./mvnw test
 ```
 
-Coverage includes authorization, booking lifecycle (accept → claim → complete), concurrent claim, account deletion, vehicles, email outbox, and password change.
+The backend tests are Spring Boot integration tests against the `mycarplanner_test` database on
+`localhost:5432` (created by `docker compose`; Redis is not needed). They cover authorization
+between roles, the booking lifecycle (including invoice numbering and the PDF contents), the
+paged booking history search, concurrent claims, account flows and deletion, password changes,
+VIN uniqueness, the email outbox and rate limiting. `InvoiceVatTest` checks the net/VAT split.
+The test profile keeps the connection pool at 3, because the local Postgres allows only 20
+connections.
 
 ```bash
-# Email renderer (Clojure CLI, or via Docker image)
+# Email renderer, without installing the Clojure CLI
 docker run --rm -v "$PWD/clojure/email-renderer:/app" -w /app \
   clojure:temurin-21-tools-deps clojure -M:test
 ```
 
-CI (`.github/workflows/ci.yml`) runs Maven tests/package and frontend lint/build on push and pull requests.
+CI (`.github/workflows/ci.yml`) runs the Maven tests and package against Postgres and Redis, plus
+frontend lint and build, on every push and pull request.
 
 ---
 
 ## Project layout
 
 ```
-mycarplanner/
+myCarPlanner/
 ├── src/main/java/com/sanproject/service_planner/
-│   ├── ServicePlannerApplication.java
-│   ├── config/           Spring config, exception handler, demo seed
-│   ├── security/         JWT, password hashing, auth helpers
-│   ├── domain/           JPA entities and enums
-│   ├── repository/       Spring Data repositories
-│   ├── dto/              Request/response payloads
-│   ├── controller/       REST controllers
-│   ├── service/          Business logic
-│   ├── email/            Outbox, SMTP, renderer client, invoice hooks
-│   └── catalog/          Vehicle catalog models + loader
+│   ├── catalog/        Hussarya catalog loader and option models
+│   ├── config/         CORS, async, error handling, demo accounts and data
+│   ├── controller/     REST endpoints
+│   ├── domain/         JPA entities and enums
+│   ├── dto/            Request and response bodies
+│   ├── email/          Outbox, renderer client, SMTP delivery
+│   ├── ratelimit/      Redis sliding-window limiter and filter
+│   ├── repository/     Spring Data repositories
+│   ├── security/       JWT, password hashing, AuthSupport
+│   └── service/        Business logic and the invoice PDF
 ├── src/main/resources/
-│   ├── db/migration/     Flyway SQL
-│   ├── catalog/          Aston Martin vehicle catalog JSON
-│   └── email/            Invoice / email logo asset
-├── src/test/java/...     Integration tests
-├── mycarplanner-frontend/
-│   ├── public/           Brand assets (logo.svg, logo-inverse.svg, favicon)
-│   └── src/
-│       ├── pages/
-│       │   ├── Landing.jsx
-│       │   ├── auth/     Login, register, password, verify, delete
-│       │   ├── client/   Dashboard, add vehicle, request service
-│       │   ├── employee/ Consultant / mechanic dashboard
-│       │   └── admin/    Management dashboard
-│       ├── components/   Shared UI (logo, theme toggle, pickers, forms)
-│       ├── theme/        Light/dark provider, hook and toggle
-│       ├── services/     Axios client and session helpers
-│       ├── constants/    Roles and workshop details
-│       └── utils/        Date/time helpers
+│   ├── application.properties
+│   ├── db/migration/   Flyway SQL
+│   ├── email/logo.png  Logo used by the invoice
+│   └── hussarya-catalog.json
+├── src/test/           Integration tests
 ├── clojure/email-renderer/
-├── .github/workflows/    CI
-└── docker-compose.yml
+│   ├── src/            Layout and templates for booking and account emails
+│   ├── resources/      Email logo
+│   └── test/
+├── mycarplanner-frontend/
+│   ├── public/         Logo, car photos, favicon (web-sized copies in img/)
+│   └── src/            pages/, components/, theme/, services/, hooks/, constants/, utils/
+├── .github/workflows/  CI
+├── Dockerfile          API image (runs the jar from target/)
+└── docker-compose.yml  Full local stack
 ```
-
----
-
-## Rebuild after code changes
-
-**API (Java):** the `app` image uses the JAR from `target/`:
-
-```bash
-./mvnw package -DskipTests
-docker compose up -d --build --force-recreate app
-```
-
-**Email templates (Clojure):**
-
-```bash
-docker compose up -d --build --force-recreate email-renderer
-```
-
-**Frontend:** usually no rebuild needed (bind mount). Full image rebuild only if `mycarplanner-frontend/Dockerfile` or dependencies change.

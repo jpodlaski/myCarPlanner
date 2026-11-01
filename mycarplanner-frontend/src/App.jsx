@@ -14,17 +14,15 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 import RequestService from "./pages/client/RequestService";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import NotFound from "./pages/NotFound";
 import PrivateRoute from "./components/PrivateRoute";
 import SessionSync from "./components/SessionSync";
 import FakeCookieBanner from "./components/FakeCookieBanner";
 import { MANAGEMENT_ROLES, WORKSHOP_ROLES } from "./constants/roles";
 
 /**
- * Front-door routing for the three user worlds:
- * - public landing / auth
- * - CLIENT → /client*
- * - workshop staff → /employee
- * - management → /admin
+ * Routes: public landing and auth pages, clients under /client, workshop staff under
+ * /employee, management under /admin.
  */
 export default function App() {
   return (
@@ -81,6 +79,7 @@ export default function App() {
                 </PrivateRoute>
               }
           />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
   );

@@ -23,8 +23,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Public auth endpoints (permitAll in SecurityConfig) plus authenticated change-password.
- * Successful login returns AuthResponse { token, role, id, name } for the React session.
+ * Public auth endpoints (permitAll in SecurityConfig) plus the authenticated password change.
+ * Login returns AuthResponse { token, role, id, name } for the React session.
  */
 @RestController
 @RequestMapping("/auth")

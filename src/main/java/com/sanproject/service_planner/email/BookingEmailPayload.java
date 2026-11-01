@@ -2,7 +2,7 @@ package com.sanproject.service_planner.email;
 
 import java.util.List;
 
-// JSON body sent to the Clojure renderer for booking lifecycle emails.
+/** JSON body sent to the Clojure renderer for booking lifecycle emails. */
 public class BookingEmailPayload {
 
     private String event;
