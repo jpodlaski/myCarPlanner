@@ -48,9 +48,9 @@ export default function GlobalNav({ links = [], actions = null, homeTo = "/" }) 
                             className="global-nav-menu-btn"
                             aria-expanded={open}
                             aria-controls={panelId}
+                            aria-label={open ? "Close menu" : "Menu"}
                             onClick={() => setOpen((value) => !value)}
                         >
-                            <span className="visually-hidden">{open ? "Close menu" : "Menu"}</span>
                             <span className="global-nav-menu-icon" aria-hidden="true" />
                         </button>
                     </>
