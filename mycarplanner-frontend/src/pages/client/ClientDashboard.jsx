@@ -216,6 +216,7 @@ export default function ClientDashboard() {
 
     const selectSection = (next) => {
         setSection(next);
+        setBookingError("");
         if (next !== "archive") setArchiveQuery("");
         if (next !== "account") {
             setShowPasswordForm(false);
@@ -429,15 +430,16 @@ export default function ClientDashboard() {
                                 className="input"
                                 aria-describedby={`cancel-hint-${booking.id}`}
                                 value={cancelForms[booking.id]?.reason ?? ""}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                    setBookingError("");
                                     setCancelForms((prev) => ({
                                         ...prev,
                                         [booking.id]: {
                                             ...prev[booking.id],
                                             reason: e.target.value,
                                         },
-                                    }))
-                                }
+                                    }));
+                                }}
                             />
                             <span id={`cancel-hint-${booking.id}`} className="field-hint">
                                 Required to cancel.
