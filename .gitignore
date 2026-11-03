@@ -13,7 +13,6 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
-!.mvn/wrapper/maven-wrapper.jar
 hs_err_pid*
 replay_pid*
 
@@ -104,9 +103,11 @@ surefire-reports/
 HELP.md
 *.bak
 *.orig
-.cursor/
-agent-transcripts/
-.junie
-.opencode/
-.claude/
 
+### Agents ###
+.agents
+skills-lock.json
+qodana.yaml
+AGENTS.md
+/docs
+mycarplanner.iml

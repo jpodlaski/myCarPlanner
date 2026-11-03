@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 /**
  * Mechanic capacity at a proposed appointment time.
  * Open jobs occupy a slot from their appointment until completed/cancelled.
+ * A time outside workshop hours is never available, whatever the mechanic count.
  */
 public class WorkshopCapacityResponse {
 
@@ -12,6 +13,7 @@ public class WorkshopCapacityResponse {
     private long technicianCount;
     private long bookedCount;
     private long remainingSlots;
+    private boolean withinWorkshopHours;
     private boolean available;
 
     public WorkshopCapacityResponse() {
@@ -22,12 +24,22 @@ public class WorkshopCapacityResponse {
             long technicianCount,
             long bookedCount,
             long remainingSlots,
+            boolean withinWorkshopHours,
             boolean available) {
         this.at = at;
         this.technicianCount = technicianCount;
         this.bookedCount = bookedCount;
         this.remainingSlots = remainingSlots;
+        this.withinWorkshopHours = withinWorkshopHours;
         this.available = available;
+    }
+
+    public boolean isWithinWorkshopHours() {
+        return withinWorkshopHours;
+    }
+
+    public void setWithinWorkshopHours(boolean withinWorkshopHours) {
+        this.withinWorkshopHours = withinWorkshopHours;
     }
 
     public LocalDateTime getAt() {

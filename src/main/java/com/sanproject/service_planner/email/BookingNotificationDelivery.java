@@ -63,10 +63,22 @@ public class BookingNotificationDelivery {
         Customer resolved = customer.get();
         BookingEmailPayload payload = buildPayload(booking, event, previousStatus, resolved.getEmail());
 
+        // The PDF is generated before rendering so the email text can say whether it is attached.
+        byte[] invoicePdf = null;
+        if ("booking_completed".equals(event)) {
+            invoicePdf = createInvoicePdf(booking, resolved);
+            payload.setInvoiceAttached(invoicePdf != null);
+        }
+
         RenderedEmail rendered = emailRendererClient.render(payload)
                 .orElseThrow(() -> new EmailDeliveryException(
                         "Failed to render " + event + " email for booking " + booking.getId()));
-        sendRenderedEmail(booking, event, resolved, rendered);
+
+        if (invoicePdf != null) {
+            mailService.send(resolved.getEmail(), rendered, invoicePdf, "invoice-booking-" + booking.getId() + ".pdf");
+        } else {
+            mailService.send(resolved.getEmail(), rendered);
+        }
     }
 
     // Touch lazy fields while the Hibernate session is still open.
@@ -83,34 +95,17 @@ public class BookingNotificationDelivery {
         booking.getServiceTypes().size();
     }
 
-    private void sendRenderedEmail(
-            ServiceBooking booking,
-            String event,
-            Customer customer,
-            RenderedEmail rendered) {
-        // Completion emails include an invoice PDF when generation succeeds.
-        if ("booking_completed".equals(event)) {
-            byte[] pdf = null;
-            try {
-                pdf = invoicePdfService.createInvoicePdf(booking, customer);
-                log.info("Generated invoice PDF for booking {} ({} bytes)", booking.getId(), pdf.length);
-            } catch (Exception e) {
-                log.error("Failed to generate invoice PDF for booking {}, sending email without attachment",
-                        booking.getId(), e);
-            }
-
-            if (pdf != null) {
-                mailService.send(
-                        customer.getEmail(),
-                        rendered,
-                        pdf,
-                        "invoice-booking-" + booking.getId() + ".pdf"
-                );
-                return;
-            }
+    /** Returns null when generation fails; the completion email is then sent without the attachment. */
+    private byte[] createInvoicePdf(ServiceBooking booking, Customer customer) {
+        try {
+            byte[] pdf = invoicePdfService.createInvoicePdf(booking, customer);
+            log.info("Generated invoice PDF for booking {} ({} bytes)", booking.getId(), pdf.length);
+            return pdf;
+        } catch (Exception e) {
+            log.error("Failed to generate invoice PDF for booking {}, sending email without attachment",
+                    booking.getId(), e);
+            return null;
         }
-
-        mailService.send(customer.getEmail(), rendered);
     }
 
     private BookingEmailPayload buildPayload(

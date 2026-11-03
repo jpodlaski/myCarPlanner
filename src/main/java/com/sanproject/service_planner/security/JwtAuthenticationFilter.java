@@ -1,6 +1,7 @@
 package com.sanproject.service_planner.security;
 
 import com.sanproject.service_planner.repository.CustomerRepository;
+import com.sanproject.service_planner.repository.EmployeeRepository;
 
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -17,18 +18,22 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Turns a valid Bearer JWT into an AuthUser in the SecurityContext. Client tokens are rejected
- * once the customer row is gone (account deletion).
+ * Turns a valid Bearer JWT into an AuthUser in the SecurityContext. Tokens are rejected once the
+ * account row is gone (client account deletion, or management deleting an employee).
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomerRepository customerRepository;
+    private final EmployeeRepository employeeRepository;
 
-    public JwtAuthenticationFilter(JwtService jwtService, CustomerRepository customerRepository) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+                                   CustomerRepository customerRepository,
+                                   EmployeeRepository employeeRepository) {
         this.jwtService = jwtService;
         this.customerRepository = customerRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     @Override
@@ -43,7 +48,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (!token.isEmpty() && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
                     AuthUser user = jwtService.parseToken(token);
-                    if (isDeletedClient(user)) {
+                    if (isDeletedAccount(user)) {
                         SecurityContextHolder.clearContext();
                     } else {
                         UsernamePasswordAuthenticationToken authentication =
@@ -61,10 +66,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private boolean isDeletedClient(AuthUser user) {
-        if (user == null || !"CLIENT".equals(user.getRole()) || user.getId() == null) {
+    private boolean isDeletedAccount(AuthUser user) {
+        if (user == null || user.getId() == null) {
             return false;
         }
-        return !customerRepository.existsById(user.getId());
+        if ("CLIENT".equals(user.getRole())) {
+            return !customerRepository.existsById(user.getId());
+        }
+        return !employeeRepository.existsById(user.getId());
     }
 }

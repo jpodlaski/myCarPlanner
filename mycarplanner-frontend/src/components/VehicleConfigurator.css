@@ -28,7 +28,7 @@
 }
 
 .config-trail-btn {
-  min-height: 32px;
+  min-height: 44px;
   padding: 0.3rem 0.9rem;
   border: 1px solid var(--separator);
   border-radius: var(--radius-pill);

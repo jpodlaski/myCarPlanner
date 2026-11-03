@@ -134,13 +134,25 @@
                    :finalCost "375.50"
                    :currency "EUR"
                    :scheduledDateTime "2026-06-16T14:00:00"
-                   :bookingId 42})]
+                   :bookingId 42
+                   :invoiceAttached true})]
       (is (str/includes? (:subject result) "service completed"))
       (is (str/includes? (:textBody result) "is complete"))
       (is (str/includes? (:textBody result) "Final cost: 375.50 EUR"))
       (is (str/includes? (:textBody result) "invoice is attached"))
       (is (str/includes? (:textBody result) "pick up your vehicle"))
-      (is (str/includes? (:textBody result) "06:00–20:00")))))
+      (is (str/includes? (:textBody result) "06:00–20:00"))))
+  (testing "booking_completed without the invoice PDF"
+    (let [result (render-booking-email
+                  {:event "booking_completed"
+                   :carModel "DB11"
+                   :status "COMPLETED"
+                   :finalCost "375.50"
+                   :bookingId 42
+                   :invoiceAttached false})]
+      (is (not (str/includes? (:textBody result) "attached")))
+      (is (not (str/includes? (:htmlBody result) "attached")))
+      (is (str/includes? (:textBody result) "download your invoice")))))
 
 (deftest render-booking-rejected-email
   (testing "booking_rejected event"

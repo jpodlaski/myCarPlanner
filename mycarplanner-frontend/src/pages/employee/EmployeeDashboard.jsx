@@ -92,13 +92,22 @@ function joinMeta(parts) {
     return parts.filter(Boolean).join(" · ");
 }
 
+// A failed capacity lookup must not block Accept: the server re-checks capacity on accept.
+function canAccept(form, capacity) {
+    if (!form?.scheduledDateTime || !capacity) return false;
+    return capacity.error === true || capacity.available === true;
+}
+
 function CapacityStatus({ capacity }) {
     let text;
     let tone = "";
     if (!capacity) {
         text = "Checking mechanic availability…";
     } else if (capacity.error) {
-        text = "Could not check capacity. Try again.";
+        text = "Could not check mechanic availability. You can still accept; the workshop checks again when you do.";
+        tone = " inline-status-error";
+    } else if (!capacity.withinWorkshopHours) {
+        text = "Outside workshop hours. Pick a time between 06:00 and 20:00.";
         tone = " inline-status-error";
     } else if (capacity.available) {
         text = `Mechanic free at this time — ${capacity.remainingSlots} of ${capacity.technicianCount} available (${capacity.bookedCount} still on earlier open jobs).`;
@@ -263,7 +272,7 @@ export default function EmployeeDashboard() {
                         if (err.code === "ERR_CANCELED" || err.name === "CanceledError") return;
                         setCapacityByBookingId((prev) => ({
                             ...prev,
-                            [booking.id]: { available: false, error: true },
+                            [booking.id]: { error: true },
                         }));
                     });
             }, 250);
@@ -421,7 +430,11 @@ export default function EmployeeDashboard() {
         setActionError("");
         const form = acceptForms[bookingId] ?? {};
         const capacity = capacityByBookingId[bookingId];
-        if (capacity && capacity.available === false && !capacity.error) {
+        if (capacity && !capacity.error && !capacity.withinWorkshopHours) {
+            setActionError("Pick an appointment time between 06:00 and 20:00.");
+            return;
+        }
+        if (capacity && !capacity.error && !capacity.available) {
             setActionError(
                 "No mechanic free at that time. Call the client to agree another appointment."
             );
@@ -556,10 +569,10 @@ export default function EmployeeDashboard() {
                             <button
                                 type="submit"
                                 className="button button-primary"
-                                disabled={
-                                    !acceptForms[booking.id]?.scheduledDateTime
-                                    || capacityByBookingId[booking.id]?.available !== true
-                                }
+                                disabled={!canAccept(
+                                    acceptForms[booking.id],
+                                    capacityByBookingId[booking.id]
+                                )}
                             >
                                 Accept booking
                             </button>

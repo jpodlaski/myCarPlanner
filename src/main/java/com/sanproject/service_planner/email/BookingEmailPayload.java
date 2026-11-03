@@ -22,6 +22,7 @@ public class BookingEmailPayload {
     private String scheduledDateTime;
     private String cancellationReason;
     private String cancelledBy;
+    private Boolean invoiceAttached;
 
     public String getEvent() {
         return event;
@@ -157,5 +158,13 @@ public class BookingEmailPayload {
 
     public void setCancelledBy(String cancelledBy) {
         this.cancelledBy = cancelledBy;
+    }
+
+    public Boolean getInvoiceAttached() {
+        return invoiceAttached;
+    }
+
+    public void setInvoiceAttached(Boolean invoiceAttached) {
+        this.invoiceAttached = invoiceAttached;
     }
 }

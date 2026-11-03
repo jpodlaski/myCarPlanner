@@ -233,6 +233,17 @@ class AuthorizationAccessTest {
     }
 
     @Test
+    void deletedWorkerTokenIsRejected() throws Exception {
+        String token = bearer(workerToken(workerB));
+        workerRepository.delete(workerB);
+        workerRepository.flush();
+
+        mockMvc.perform(get("/bookings/{id}", readyBooking.getId())
+                        .header("Authorization", token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void workerCannotViewBookingAssignedToSomeoneElse() throws Exception {
         mockMvc.perform(get("/bookings/{id}", assignedToWorkerA.getId())
                         .header("Authorization", bearer(workerToken(workerB))))

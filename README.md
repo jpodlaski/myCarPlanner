@@ -22,7 +22,7 @@ ending with a PDF invoice.
 | Who | Signs in at | Can |
 |-----|-------------|-----|
 | **Client** | `/login` (email) | Register and verify email; add and remove vehicles from the Hussarya catalog; request service with a drop-off time; cancel open bookings; download invoices; change password; delete the account |
-| **Client service consultant** | `/employee-login` | Review incoming requests; accept with an appointment time (checked against free mechanic capacity), reject, or cancel; see workshop progress and the archive |
+| **Client service consultant** | `/employee-login` | Review incoming requests; accept with an appointment time (within workshop hours, checked against free mechanic capacity), reject, or cancel; see workshop progress and the archive |
 | **Mechanic / apprentice mechanic** | `/employee-login` | Claim confirmed jobs; update the work plan and estimate; complete with a final cost (generates the invoice); cancel their own job |
 | **Management** (`ADMIN`, `CEO`, `COO`) | `/employee-login` | Create workers, change their roles, delete them; search the full booking history (paged, 20 per page) |
 
@@ -123,7 +123,8 @@ in as `anna.nowak@example.com` to see the bookings, the archive and the invoice.
 2. Open the verification email in MailHog (http://localhost:8025) and follow the link.
 3. Sign in at http://localhost:5173/login.
 4. **Vehicles → Add vehicle**: pick a model, body, engine, transmission and year, then enter a VIN.
-5. **Request service**: choose the car, describe the issue and pick a drop-off date and time.
+5. **Request service**: choose the car, describe the issue and pick a drop-off date and a time
+   between 06:00 and 20:00.
 6. Sign out and sign in at http://localhost:5173/employee-login as `admin` / `admin`. Use the
    demo staff, or create your own **client service consultant** and **mechanic**.
 7. Sign in as the consultant and accept the request with an appointment time.
@@ -187,7 +188,7 @@ SMTP fails, or the API crashes, a poller retries the row with increasing delays 
 | `technician_assigned` | Mechanic claims the job; asks the client to drop the car off |
 | `work_plan_updated` | Mechanic changes the planned work or estimate |
 | `booking_rejected`, `booking_cancelled` | Workshop declines, or anyone cancels |
-| `booking_completed` | Job done; invoice PDF attached, pickup hours included |
+| `booking_completed` | Job done; invoice PDF attached (if it cannot be generated, the email points to the download instead), pickup hours included |
 
 Emails and the invoice use the same look as the web app: white cards on `#f5f5f7`, `#1d1d1f`
 text, blue `#0071e3` pill buttons and the Hussarya logo (`email/logo.png`, kept identical in
@@ -214,8 +215,11 @@ The invoice follows the Polish VAT invoice layout (*faktura VAT*):
 - The API is stateless: each request carries `Authorization: Bearer <JWT>`. The acting user always
   comes from the token, never from ids in the request body, and "me" routes such as
   `/customers/me/bookings` are preferred.
-- Rate limits are set in `application.properties`. Sign-in, registration and recovery endpoints are
-  strict (3–10 requests per minute per IP); everything else falls back to 600 per minute per caller.
+- A token stops working as soon as its account is deleted, whether a client deleted their own
+  account or management deleted a staff member.
+- Rate limits are set in `application.properties`. Every `/auth` endpoint is strict (3–10 requests
+  per minute): per IP for anonymous callers, per account when a token is sent, so a token cannot
+  be used to escape the limit. Everything else falls back to 600 per minute per caller.
   If Redis is down, requests are allowed through.
 - Route guards in the React app only improve the experience; the API checks access on every call.
 
@@ -247,9 +251,9 @@ Sign-in returns `{ token, role, id, name }`.
 
 | Endpoint | Who | Does |
 |----------|-----|------|
-| `POST /bookings` | Client | Requests service for one of their cars |
+| `POST /bookings` | Client | Requests service for one of their cars; the drop-off must be in the future, between 06:00 and 20:00 |
 | `GET /customers/me/bookings` | Client | Their bookings |
-| `POST /bookings/{id}/accept` | Consultant | Sets the appointment, moves to `READY_FOR_WORK` |
+| `POST /bookings/{id}/accept` | Consultant | Sets the appointment (future, 06:00–20:00, a mechanic free), moves to `READY_FOR_WORK` |
 | `POST /bookings/{id}/reject` | Consultant | Declines a `SCHEDULED` request |
 | `POST /bookings/{id}/claim` | Mechanic | Takes a `READY_FOR_WORK` job, moves to `IN_PROGRESS` |
 | `POST /bookings/{id}/work-plan` | Assigned mechanic | Updates services and estimate |
@@ -257,7 +261,7 @@ Sign-in returns `{ token, role, id, name }`.
 | `POST /bookings/{id}/cancel` | Client, consultant, assigned mechanic | Cancels with a reason |
 | `GET /bookings/{id}/invoice` | Owning client | Invoice PDF for a completed booking |
 | `GET /workers/me/bookings`, `/workers/me/awaiting-workshop`, `/workers/me/consultant-archive` | Staff | Role-specific queues |
-| `GET /workers/me/workshop-capacity` | Consultant | Free mechanics at a proposed appointment time |
+| `GET /workers/me/workshop-capacity` | Consultant | Free mechanics at a proposed appointment time; never available outside 06:00–20:00 |
 
 Vehicles live under `/vehicles/me` (list, add, history, `vin-available`), and management under
 `/admins` (`/admins/workers`, `/admins/bookings`).
@@ -267,7 +271,7 @@ booking number (`#42`), customer, email, model, VIN, assigned worker, descriptio
 reason or status (`in progress`). Results are newest first:
 
 ```json
-{ "items": [ ... ], "page": 0, "size": 20, "totalItems": 57, "totalPages": 3 }
+{ "items": [ { "id": 42, "status": "COMPLETED" } ], "page": 0, "size": 20, "totalItems": 57, "totalPages": 3 }
 ```
 
 ### Example with curl
@@ -285,11 +289,11 @@ MECHANIC=$(token employee-login mechanic1 secret123)
 
 curl -s -X POST http://localhost:8080/bookings \
   -H "Authorization: Bearer $CLIENT" -H 'Content-Type: application/json' \
-  -d '{"vehicleId":1,"customerDescription":"Noise when braking","estimatedDropOffTime":"2026-06-15T10:30:00","availabilityNotes":"Tuesday mornings"}'
+  -d '{"vehicleId":1,"customerDescription":"Noise when braking","estimatedDropOffTime":"2027-06-15T10:30:00","availabilityNotes":"Tuesday mornings"}'
 
 curl -s -X POST http://localhost:8080/bookings/1/accept \
   -H "Authorization: Bearer $CONSULTANT" -H 'Content-Type: application/json' \
-  -d '{"scheduledDateTime":"2026-06-16T14:00:00"}'
+  -d '{"scheduledDateTime":"2027-06-16T14:00:00"}'
 
 curl -s -X POST http://localhost:8080/bookings/1/claim \
   -H "Authorization: Bearer $MECHANIC" -H 'Content-Type: application/json' \
@@ -365,6 +369,7 @@ and shows a reload screen instead of a blank page.
 
 Flyway applies `src/main/resources/db/migration/V*.sql` on startup; Hibernate only validates the
 mapping. Add a new `V<n>__description.sql` for every schema change rather than editing old ones.
+`MigrationChecksumTest` fails if a released migration changes; add the new file's hash there too.
 
 ### Vehicle catalog
 
@@ -381,9 +386,12 @@ page (`mycarplanner-frontend/src/constants/models.js`) mirrors this file.
 
 The backend tests are Spring Boot integration tests against the `mycarplanner_test` database on
 `localhost:5432` (created by `docker compose`; Redis is not needed). They cover authorization
-between roles, the booking lifecycle (including invoice numbering and the PDF contents), the
-paged booking history search, concurrent claims, account flows and deletion, password changes,
-VIN uniqueness, the email outbox and rate limiting. `InvoiceVatTest` checks the net/VAT split.
+between roles (including tokens of deleted accounts), the booking lifecycle (workshop hours,
+invoice numbering and the PDF contents), the paged booking history search, concurrent claims,
+account flows and deletion, password changes, VIN uniqueness, the email outbox and rate limiting.
+`InvoiceVatTest` checks the net/VAT split, `BookingNotificationDeliveryTest` checks that the
+completion email only claims an attached invoice when there is one, and `MigrationChecksumTest`
+fails if a released Flyway migration is edited.
 The test profile keeps the connection pool at 3, because the local Postgres allows only 20
 connections.
 

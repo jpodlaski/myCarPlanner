@@ -116,7 +116,7 @@
       (conj [cost-label cost-value]))))
 
 (defn render-booking-email
-  [{:keys [event customerName carModel status bookingId cancelledBy] :as payload}]
+  [{:keys [event customerName carModel status bookingId cancelledBy invoiceAttached] :as payload}]
   (let [name (or customerName "Customer")
         model (or carModel "your vehicle")
         booking-ref (when bookingId (str " #" bookingId))
@@ -170,7 +170,9 @@
                        " has been cancelled by the workshop."))
                 "booking_completed"
                 (str "Service on your " model " is complete. "
-                     "Your invoice is attached to this email.")
+                     (if invoiceAttached
+                       "Your invoice is attached to this email."
+                       "You can download your invoice from your completed bookings in myCarPlanner."))
                 (str "There is an update regarding your service for " model "."))
         headline (case event
                    "created" "We’ve received your request."

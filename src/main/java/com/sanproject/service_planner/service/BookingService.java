@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,6 +51,10 @@ import java.util.Locale;
  */
 @Service
 public class BookingService {
+
+    // Inclusive on both ends: DropOffPicker offers 20:00 as the last slot.
+    private static final LocalTime WORKSHOP_OPENS = LocalTime.of(6, 0);
+    private static final LocalTime WORKSHOP_CLOSES = LocalTime.of(20, 0);
 
     private final ServiceBookingRepository bookingRepository;
     private final VehicleRepository vehicleRepository;
@@ -180,6 +185,7 @@ public class BookingService {
         }
 
         validateFutureDateTime(request.getScheduledDateTime(), "scheduledDateTime");
+        validateWithinWorkshopHours(request.getScheduledDateTime(), "scheduledDateTime");
 
         WorkshopCapacityResponse capacity = workshopCapacityAt(request.getScheduledDateTime());
         if (!capacity.isAvailable()) {
@@ -564,8 +570,10 @@ public class BookingService {
                 at,
                 List.of(BookingStatus.READY_FOR_WORK, BookingStatus.IN_PROGRESS));
         long remainingSlots = Math.max(0, technicianCount - bookedCount);
-        boolean available = remainingSlots > 0;
-        return new WorkshopCapacityResponse(at, technicianCount, bookedCount, remainingSlots, available);
+        boolean withinHours = isWithinWorkshopHours(at);
+        boolean available = withinHours && remainingSlots > 0;
+        return new WorkshopCapacityResponse(
+                at, technicianCount, bookedCount, remainingSlots, withinHours, available);
     }
 
     private void validateAvailability(CreateBookingRequest request) {
@@ -576,6 +584,7 @@ public class BookingService {
         }
 
         validateFutureDateTime(request.getEstimatedDropOffTime(), "estimatedDropOffTime");
+        validateWithinWorkshopHours(request.getEstimatedDropOffTime(), "estimatedDropOffTime");
     }
 
     private void validateFutureDateTime(LocalDateTime dateTime, String fieldName) {
@@ -584,5 +593,18 @@ public class BookingService {
                     HttpStatus.BAD_REQUEST,
                     fieldName + " must be in the future");
         }
+    }
+
+    private void validateWithinWorkshopHours(LocalDateTime dateTime, String fieldName) {
+        if (!isWithinWorkshopHours(dateTime)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    fieldName + " must be within workshop hours (06:00–20:00)");
+        }
+    }
+
+    private static boolean isWithinWorkshopHours(LocalDateTime dateTime) {
+        LocalTime time = dateTime.toLocalTime();
+        return !time.isBefore(WORKSHOP_OPENS) && !time.isAfter(WORKSHOP_CLOSES);
     }
 }

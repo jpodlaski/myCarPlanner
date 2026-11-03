@@ -153,7 +153,7 @@ class BookingLifecycleTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == " + bookingId + ")]").isEmpty());
 
-        String appointment = LocalDateTime.now().plusDays(2).withNano(0).format(ISO);
+        String appointment = appointmentInTwoDays();
         mockMvc.perform(post("/bookings/{id}/accept", bookingId)
                         .header("Authorization", consultantAuth())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -236,7 +236,7 @@ class BookingLifecycleTest {
     void mechanicCannotAcceptOrReject() throws Exception {
         long bookingId = createBookingAsClient();
 
-        String appointment = LocalDateTime.now().plusDays(2).withNano(0).format(ISO);
+        String appointment = appointmentInTwoDays();
         mockMvc.perform(post("/bookings/{id}/accept", bookingId)
                         .header("Authorization", workerAuth())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -355,6 +355,80 @@ class BookingLifecycleTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void createBookingRejectsDropOffOutsideWorkshopHours() throws Exception {
+        for (String dropOff : new String[] {"2030-06-15T03:00:00", "2030-06-15T05:59:00", "2030-06-15T20:30:00"}) {
+            mockMvc.perform(post("/bookings")
+                            .header("Authorization", clientAuth())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(bookingRequest(dropOff)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
+    void createBookingAcceptsDropOffAtOpeningAndClosingTime() throws Exception {
+        for (String dropOff : new String[] {"2030-06-15T06:00:00", "2030-06-15T20:00:00"}) {
+            mockMvc.perform(post("/bookings")
+                            .header("Authorization", clientAuth())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(bookingRequest(dropOff)))
+                    .andExpect(status().isCreated());
+        }
+    }
+
+    @Test
+    void consultantCannotScheduleOutsideWorkshopHours() throws Exception {
+        long bookingId = createBookingAsClient();
+        String lateEvening = LocalDateTime.now().plusDays(2)
+                .withHour(21).withMinute(0).withSecond(0).withNano(0).format(ISO);
+
+        mockMvc.perform(post("/bookings/{id}/accept", bookingId)
+                        .header("Authorization", consultantAuth())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduledDateTime\":\"" + lateEvening + "\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void workshopCapacityReportsFreeMechanicWithinWorkshopHours() throws Exception {
+        mockMvc.perform(get("/workers/me/workshop-capacity")
+                        .param("at", appointmentInTwoDays())
+                        .header("Authorization", consultantAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.withinWorkshopHours").value(true))
+                .andExpect(jsonPath("$.available").value(true));
+    }
+
+    @Test
+    void workshopCapacityIsUnavailableOutsideWorkshopHours() throws Exception {
+        String lateEvening = LocalDateTime.now().plusDays(2)
+                .withHour(21).withMinute(0).withSecond(0).withNano(0).format(ISO);
+
+        mockMvc.perform(get("/workers/me/workshop-capacity")
+                        .param("at", lateEvening)
+                        .header("Authorization", consultantAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.withinWorkshopHours").value(false))
+                .andExpect(jsonPath("$.available").value(false));
+    }
+
+    private String bookingRequest(String dropOff) {
+        return """
+                {
+                  "vehicleId": %d,
+                  "customerDescription": "Strange noise when braking",
+                  "estimatedDropOffTime": "%s",
+                  "availabilityNotes": "Weekday mornings"
+                }
+                """.formatted(vehicle.getId(), dropOff);
+    }
+
+    private static String appointmentInTwoDays() {
+        return LocalDateTime.now().plusDays(2)
+                .withHour(10).withMinute(30).withSecond(15).withNano(0).format(ISO);
+    }
+
     private long createBookingAsClient() throws Exception {
         MvcResult result = mockMvc.perform(post("/bookings")
                         .header("Authorization", clientAuth())
@@ -376,7 +450,7 @@ class BookingLifecycleTest {
     }
 
     private long acceptBooking(long bookingId) throws Exception {
-        String appointment = LocalDateTime.now().plusDays(2).withNano(0).format(ISO);
+        String appointment = appointmentInTwoDays();
         mockMvc.perform(post("/bookings/{id}/accept", bookingId)
                         .header("Authorization", consultantAuth())
                         .contentType(MediaType.APPLICATION_JSON)

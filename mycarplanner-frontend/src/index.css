@@ -260,7 +260,7 @@ a:hover {
 }
 
 .button-small {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0.45rem 1rem;
   font-size: 0.875rem;
 }
@@ -402,9 +402,9 @@ a:hover {
 .input:focus,
 .select:focus,
 .textarea:focus {
-  outline: none;
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgb(0 113 227 / 0.3);
 }
 
 .input[aria-invalid="true"],
@@ -462,9 +462,9 @@ a:hover {
 }
 
 .text-field-input:focus {
-  outline: none;
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgb(0 113 227 / 0.3);
 }
 
 .text-field-input[aria-invalid="true"] {
